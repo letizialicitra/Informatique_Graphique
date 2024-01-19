@@ -19,11 +19,7 @@ static inline double sqr(double x) { return x * x; }
 class Vector {
 public:
     // Constructor with default values
-    explicit Vector(double x = 0, double y = 0, double z = 0) {
-        coord[0] = x;
-        coord[1] = y;
-        coord[2] = z;
-    }
+    explicit Vector(double x = 0, double y = 0, double z = 0) : coord{x, y, z} {}
 
     // Access operators for vector components
     double& operator[](int i) { return coord[i]; }
@@ -48,6 +44,13 @@ public:
         coord[0] /= n;
         coord[1] /= n;
         coord[2] /= n;
+    }
+
+    // Get the normalized vector without modifying the original vector
+    Vector getNormalized() const {
+        Vector result = *this;
+        result.normalize();
+        return result;
     }
 
     // Array to store the vector components
@@ -151,9 +154,9 @@ public:
     }
 
     // Function to check for intersection between the scene and a ray
-    bool intersect(const Ray& r, Vector& P, Vector& N, int& objectId) const {
+    bool intersect(const Ray& r, Vector& P, Vector& N, int& objectId, double& best_t) const {
         bool has_intersection = false;
-        double best_t = 1E10; // Initialize with a large value
+        best_t = 1E10; // Initialize with a large value
 
         // Loop through all the objects in the scene
         for (int i = 0; i < objects.size(); i++) {
@@ -188,20 +191,20 @@ int main() {
 
     double fov = 60 * M_PI / 180.0;
     double d = W / (2.0 * tan(fov / 2));
-    
+
     // Create the scene and add spheres to it
     Scene s;
-    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0.5, 0.8, 0.1))); //ball in the center
-    s.addSphere(Sphere(Vector(-1000, 0, 0), 940., Vector(0.3, 0.2, 0.9))); //from left
-    s.addSphere(Sphere(Vector(1000, 0, 0), 940., Vector(0.9, 0.5, 0.5))); //from right
-    s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.9))); //from below
-    s.addSphere(Sphere(Vector(0, 1000, 0), 940., Vector(0.2, 0.2, 0.1))); //from up
-    s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.9))); //background
-    s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.8))); //background
+    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0)));         // ball in the center
+    s.addSphere(Sphere(Vector(-1000, 0, 0), 955., Vector(0.0, 0.2, 0.9)));   // from left
+    s.addSphere(Sphere(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7)));    // from right
+    s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.14)));   // from below
+    s.addSphere(Sphere(Vector(0, 1000, 0), 950., Vector(0.2, 0.2, 0.1)));    // from up
+    s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.1)));   // background
+    s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.1)));    // background
 
-    Vector camera(0, 0, 55); // Set up the camera position
-    Vector L(-10, 20, 40);   // Set up the light position
-    double I = 1E10;
+    Vector camera(0, 0 , 55);    // Set up the camera position
+    Vector light(-15, 30, 40);   // Set up the light position
+    double intensity = 1E9;
 
     // Create an image buffer
     std::vector<unsigned char> image(W * H * 3, 0);
@@ -217,23 +220,31 @@ int main() {
             Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
             u.normalize();
             Ray r(camera, u);
-            
             Vector P, N;
-            
-            // Check for ray intersection with objects in the scene
-            if (s.intersect(r, P, N, objectId)) {
-                Vector vecLum = L - P;
-                double d2 = vecLum.norm2();
-                vecLum.normalize();
-                
-                // Calculate the color using the Lambertian reflection model
-                Vector color = s.objects[objectId].albedo * (I * std::max(0., dot(vecLum, N)) / (4. * M_PI * M_PI * d2));
-                
-                // Apply gamma correction and store the color values in the image buffer
-                image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
-                image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
-                image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
+            int sphere_id;
+            double t;
+            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
+            Vector color(0, 0, 0);
+
+            if (has_intersection) {
+                Ray ray_light(P + 0.01 * N, (light - P).getNormalized());
+                Vector P_light, N_light;
+                int sphere_id_light;
+                double t_light;
+                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+                double d_light_squared = (light - P).norm2();
+
+                if (has_intersection_light && t_light * t_light < d_light_squared) {
+                    color = Vector(0, 0, 0); // Shadow color -> 000 è nero, fa 'ombra'
+                } else {
+                    color = s.objects[sphere_id].albedo * (intensity * std::max(0., dot((light - P).getNormalized(), N)) / d_light_squared);
+                }
             }
+
+            // Apply gamma correction and store the color values in the image buffer
+            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
+            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
+            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
         }
     }
 
@@ -242,5 +253,3 @@ int main() {
 
     return 0;
 }
-
-
