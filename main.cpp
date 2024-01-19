@@ -98,7 +98,7 @@ public:
     Vector C;       // Center of the sphere
     double R;       // Radius of the sphere
     Vector albedo;  // Surface color of the sphere
-
+    bool is_mirror;
     // Function to check for intersection between the sphere and a ray
     bool intersect(const Ray& r, Vector& P, Vector& N, double& tlocal) const {
         // Coefficients of the quadratic equation for intersection
@@ -139,7 +139,7 @@ public:
     }
 
     // Constructor to initialize the sphere with a center, radius, and surface color
-    Sphere(const Vector& c, double r, const Vector& a) : C(c), R(r), albedo(a) {}
+    Sphere(const Vector& c, double r, const Vector& a, bool is_mirror = false) : C(c), R(r), albedo(a), is_mirror(is_mirror) {}
 };
 
 // Class representing a scene containing multiple spheres
@@ -183,7 +183,51 @@ public:
 
     // Vector to store the spheres in the scene
     std::vector<Sphere> objects;
+    Vector position_light ;   // Set up the light position
+    double intensity_light ;
+
 };
+
+
+Vector getColor(const Ray &r,const  Scene &s, int number_of_rebonds ) {
+
+    if ( number_of_rebonds == 0 ) {
+        return Vector(0,0,0);
+    }
+     Vector P, N;
+            int sphere_id;
+            double t;
+            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
+            Vector color(0, 0, 0);
+
+
+            if (has_intersection) {
+
+              
+                if(s.objects[sphere_id].is_mirror) {
+                    Vector direction_mirror= r.u - 2*dot(N,r.u)*N;
+                    Ray ray_mirror(P+0.001*N,direction_mirror);
+                    color = getColor(ray_mirror, s, number_of_rebonds -1);
+                } else {
+
+                Ray ray_light(P + 0.01 * N, (s.position_light- P).getNormalized());
+                Vector P_light, N_light;
+                int sphere_id_light;
+                double t_light;
+                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+                double d_light_squared = (s.position_light - P).norm2();
+
+                if (has_intersection_light && t_light * t_light < d_light_squared) {
+                    color = Vector(0, 0, 0); // Shadow color -> 000 è nero, fa 'ombra'
+                } else {
+                    color = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / d_light_squared);
+                }
+            }
+            }
+            return color;
+
+}
+
 
 int main() {
     int W = 512;
@@ -194,18 +238,18 @@ int main() {
 
     // Create the scene and add spheres to it
     Scene s;
-    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0)));         // ball in the center
+    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0),true));         // ball in the center
     s.addSphere(Sphere(Vector(-1000, 0, 0), 955., Vector(0.0, 0.2, 0.9)));   // from left
     s.addSphere(Sphere(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7)));    // from right
     s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.14)));   // from below
     s.addSphere(Sphere(Vector(0, 1000, 0), 950., Vector(0.2, 0.2, 0.1)));    // from up
     s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.1)));   // background
     s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.1)));    // background
-
+    s.position_light = Vector(-15, 30, 40);   // Set up the light position
+    s.intensity_light = 1E9;
     Vector camera(0, 0 , 55);    // Set up the camera position
-    Vector light(-15, 30, 40);   // Set up the light position
-    double intensity = 1E9;
-
+  
+   
     // Create an image buffer
     std::vector<unsigned char> image(W * H * 3, 0);
 
@@ -220,27 +264,9 @@ int main() {
             Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
             u.normalize();
             Ray r(camera, u);
-            Vector P, N;
-            int sphere_id;
-            double t;
-            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
-            Vector color(0, 0, 0);
 
-            if (has_intersection) {
-                Ray ray_light(P + 0.01 * N, (light - P).getNormalized());
-                Vector P_light, N_light;
-                int sphere_id_light;
-                double t_light;
-                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-                double d_light_squared = (light - P).norm2();
-
-                if (has_intersection_light && t_light * t_light < d_light_squared) {
-                    color = Vector(0, 0, 0); // Shadow color -> 000 è nero, fa 'ombra'
-                } else {
-                    color = s.objects[sphere_id].albedo * (intensity * std::max(0., dot((light - P).getNormalized(), N)) / d_light_squared);
-                }
-            }
-
+            Vector color = getColor(r,s,5);
+           
             // Apply gamma correction and store the color values in the image buffer
             image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
