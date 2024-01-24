@@ -238,11 +238,19 @@ int main() {
 
     // Create the scene and add spheres to it
     Scene s;
-    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0),true));         // ball in the center
-    s.addSphere(Sphere(Vector(-1000, 0, 0), 955., Vector(0.0, 0.2, 0.9)));   // from left
+
+    //with this 2 you can reflect the color of the top on the ground: look at the z parameter, they are inversed! And this works just having as y (or as x -> you will have left and right of the same color) 10 or -10
+    //  s.addSphere(Sphere(Vector(0, -10, 55), 10., Vector(0, 0.971, 0),true));         // ball in the center
+    // s.addSphere(Sphere(Vector(0, 10, -55), 10., Vector(0, 0.971, 0),true));         // ball in the center
+    s.addSphere(Sphere(Vector(-5, -15, -55), 10., Vector(0, 0.971, 0),true));         // ball in the center
+    s.addSphere(Sphere(Vector(5, 15, -55), 10., Vector(0, 0.971, 0),true));         // ball in the center
+
+
+
+    s.addSphere(Sphere(Vector(-1000, 0, 0), 965., Vector(0.0, 0.2, 0.9)));   // from left
     s.addSphere(Sphere(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7)));    // from right
-    s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.14)));   // from below
-    s.addSphere(Sphere(Vector(0, 1000, 0), 950., Vector(0.2, 0.2, 0.1)));    // from up
+    s.addSphere(Sphere(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14)));   // from below
+    s.addSphere(Sphere(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9)));    // from up
     s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.1)));   // background
     s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.1)));    // background
     s.position_light = Vector(-15, 30, 40);   // Set up the light position
