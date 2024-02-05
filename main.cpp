@@ -1,6 +1,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 // Include STB image write and read implementations
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -11,6 +12,9 @@
 
 // Define PI for later use
 #define M_PI 3.14159265358979323846
+
+std::default_random_engine engine;
+std::uniform_real_distribution<double> uniform(0,1);
 
 // Function to calculate the square of a number
 static inline double sqr(double x) { return x * x; }
@@ -28,13 +32,15 @@ public:
     double& operator[](int i) { return coord[i]; }
     double operator[](int i) const { return coord[i]; }
 
+
     // Overloaded addition assignment operator
     Vector& operator+=(const Vector& v) {
-        coord[0] += v[0];
-        coord[1] += v[1];
-        coord[2] += v[2];
-        return *this;
+    coord[0] += v[0];
+    coord[1] += v[1];
+    coord[2] += v[2];
+    return *this;
     }
+
 
     // Calculate the squared norm of the vector
     double norm2() const {
@@ -56,6 +62,7 @@ public:
         return result;
     }
 
+   
     Vector operator-() const {
         return Vector(-coord[0], -coord[1], -coord[2]);
     }
@@ -78,14 +85,29 @@ Vector operator*(const Vector& a, double b) {
     return Vector(a[0] * b, a[1] * b, a[2] * b);
 }
 
+Vector operator*(const Vector& a, const Vector& b) {
+    return Vector(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
+}
+
 // Overloaded multiplication operator for scalar and vector
 Vector operator*(double a, const Vector& b) {
     return Vector(a * b[0], a * b[1], a * b[2]);
 }
 
+
+// Overloaded division operator for vector and scalar
+Vector operator/(const Vector& a, double b) {
+    return Vector(a[0] / b, a[1] / b, a[2] / b);
+}
+
 // Dot product of two vectors
 double dot(const Vector& a, const Vector& b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+Vector cross(const Vector& a, const Vector& b) {
+    return Vector(a[1] * b[2] - a[2] * b[1],
+                  a[2] * b[0] - a[0] * b[2],
+                  a[0] * b[1] - a[1] * b[0]);
 }
 
 // Class representing a ray in 3D space
@@ -210,7 +232,7 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 
         }
         else {
-
+            // contribution of the enlightenment direct
             Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
             Vector P_light, N_light;
             int sphere_id_light;
@@ -221,9 +243,24 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
                 intensite_pix = Vector(0, 0, 0);
             }
             else {
-                intensite_pix = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+                intensite_pix = s.objects[sphere_id].albedo /M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
             }
-        }
+
+            //contribution of the enlightenment indirect
+            double r1 =  uniform(engine);
+            double r2 =  uniform(engine);
+
+            Vector random_direction_local(cos(2*M_PI *r1)*sqrt(1-r2),sin(2*M_PI*r1)*sqrt(1-r2),sqrt(r2)); 
+            Vector random(uniform(engine) - 0.5,uniform(engine) -0.5, uniform(engine) -0.5);
+            Vector tangent_1 = cross(N, random);
+            tangent_1.normalize();
+            Vector tangent_2 = cross(tangent_1, N);
+
+            Vector random_direction = random_direction_local[2]*N + random_direction_local[0]* tangent_1 + random_direction_local[1]*tangent_2;
+            Ray random_rayon (P + 0.001 * N, random_direction_local);
+
+            intensite_pix += getColor(random_rayon , s, nbrebonds - 1) * s.objects[sphere_id].albedo;
+        }   
     }
     return intensite_pix;
 }
@@ -232,6 +269,7 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 int main() {
     int W = 512;
     int H = 512;
+    const int number_of_rays = 8;
 
     double fov = 60 * M_PI / 180.0;
     double d = W / (2.0 * tan(fov / 2));
@@ -245,8 +283,8 @@ int main() {
     
    
     Scene s;
-    Sphere s1(Vector(-15, 0, -55), 10., Vector(1,0,0),false,true);
-    Sphere s1bis(Vector(15, 0, -55), 10., Vector(1,0,0),true);
+    Sphere s1(Vector(0, 0, -55), 20., Vector(1,0,0));
+    //Sphere s1bis(Vector(15, 0, -55), 10., Vector(1,0,0));
     Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));   // from below
     Sphere s3(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9));    // from up
     Sphere s4(Vector(-1000, 0, 0), 965., Vector(0.0, 0.2, 0.9));   // from left
@@ -256,14 +294,14 @@ int main() {
 
  
     s.addSphere(s1);
-    s.addSphere(s1bis);
+    //s.addSphere(s1bis);
     s.addSphere(s2);
     s.addSphere(s3);
     s.addSphere(s4);
     s.addSphere(s5);
     s.addSphere(s6);
     s.position_light = Vector(0, 30, 20);
-    s.intensity_light = 1E9;
+    s.intensity_light = 2E9;
     Vector camera(0, 0 , 55);    // Set up the camera position
   
    
@@ -282,7 +320,10 @@ int main() {
             u.normalize();
             Ray r(camera, u);
 
-            Vector color = getColor(r,s,5);
+            Vector color(0.,0.,0.);
+            for (int k=0; k<number_of_rays; k++){
+                color += getColor(r,s,5)/number_of_rays;
+            } 
            
             // Apply gamma correction and store the color values in the image buffer
             image[(i * W + j) * 3 + 0] = std::min(255., std::max(0., std::pow(color[0], 1 / 2.2))); // RED
