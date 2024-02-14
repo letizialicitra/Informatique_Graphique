@@ -360,7 +360,211 @@ int main() {
 This is the image obtained at the end of the section:
 ![image_1_2](image_1_2.png)
 # BE-2 19/01/24
+## Section2.1 
+In this part, we will introduce the shadowing. In particular, we will introduce, in case of intersection between the source of light and the Scene, another ray. In case this ray will have intersection with the Sphere and the distance between the sphere and the groundfloor is smaller than the distance between the the source of light and the groundfloor, we will put that pixel black.  
 
+More over, we can add the gamma correction in order to have a major precision about the intensity of the color. For that, we use the function std::pow(intensity_color[0],1/2.2);
+```cpp
+int main() {
+    int W = 512;
+    int H = 512;
+
+    double fov = 60 * M_PI / 180.0;
+    double d = W / (2.0 * tan(fov / 2));
+    Scene s;
+    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0)));         // ball in the center
+    s.addSphere(Sphere(Vector(-1000, 0, 0), 955., Vector(0.0, 0.2, 0.9)));   // from left
+    s.addSphere(Sphere(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7)));    // from right
+    s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.14)));   // from below
+    s.addSphere(Sphere(Vector(0, 1000, 0), 950., Vector(0.2, 0.2, 0.1)));    // from up
+    s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.1)));   // background
+    s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.1)));    // background
+
+    Vector camera(0, 0 , 55);    // Set up the camera position
+    Vector light(-15, 30, 40);   // Set up the light position
+    double intensity = 1E9;
+
+    std::vector<unsigned char> image(W * H * 3, 0);
+
+    int objectId;
+    double best_t;
+
+#pragma omp parallel for private(objectId, best_t)
+    for (int i = 0; i < H; i++) {
+        for (int j = 0; j < W; j++) {
+            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
+            u.normalize();
+            Ray r(camera,u);
+            Vector P,N;
+            int sphere_id;
+            double t;
+            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
+            Vector color(0, 0, 0);
+
+            if (has_intersection) {
+                Ray ray_light(P + 0.01 * N, (light - P).getNormalized());
+                Vector P_light, N_light;
+                int sphere_id_light;
+                double t_light;
+                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+                double d_light_squared = (light - P).norm2();
+
+                if (has_intersection_light && t_light * t_light < d_light_squared) {
+                    color = Vector(0, 0, 0); // Shadow color -> 000 is black, indicating shadow
+                } else {
+                    color = s.objects[sphere_id].albedo * (intensity * std::max(0., dot((light - P).getNormalized(), N)) / d_light_squared);
+                }
+            }
+            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
+            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
+            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
+        }
+    }
+
+    stbi_write_png("image_2_1.png", W, H, 3, &image[0], 0);
+
+    return 0;
+}
+
+```
+This is the result obtained: it is possible to notice the shadow below the ball in the center, that goes onto the floor.qa
+![image_2_1](image_2_1.png)
+
+## Section2.2 Surface mirror
+
+In this section we aim to introduce the concept of mirror surface. What we have to do is:
+- create a function tha compute recursively the color to apply, called getColor();
+- the number of calls of the function is determined by a parameter called number_of_rebonds;
+- we called this function in the main; it is also a way to have a better style of coding; 
+- we add a parameter inside the Sphere Class to know if that sphere is mirror or not.
+
+
+```cpp
+Vector getColor(const Ray &r,const  Scene &s, int number_of_rebonds ) {
+
+    if ( number_of_rebonds == 0 ) {
+        return Vector(0,0,0);
+    }
+     Vector P, N;
+            int sphere_id;
+            double t;
+            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
+            Vector color(0, 0, 0);
+
+
+            if (has_intersection) {
+
+
+                if(s.objects[sphere_id].is_mirror) {
+                    Vector direction_mirror= r.u - 2*dot(N,r.u)*N;
+                    Ray ray_mirror(P+0.001*N,direction_mirror);
+                    color = getColor(ray_mirror, s, number_of_rebonds -1);
+                } else {
+
+                Ray ray_light(P + 0.01 * N, (s.position_light- P).getNormalized());
+                Vector P_light, N_light;
+                int sphere_id_light;
+                double t_light;
+                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+                double d_light_squared = (s.position_light - P).norm2();
+
+                if (has_intersection_light && t_light * t_light < d_light_squared) {
+                    color = Vector(0, 0, 0); // Shadow color -> 000 è nero, fa 'ombra'
+                } else {
+                    color = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / d_light_squared);
+                }
+            }
+            }
+            return color;
+
+}
+
+
+```
+
+In the main:
+```cpp
+ for (int i = 0; i < H; i++) {
+        for (int j = 0; j < W; j++) {
+            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
+            u.normalize();
+            Ray r(camera,u);
+            Vector color = getColor(r,s,5);
+            // Apply gamma correction and store the color values in the image buffer
+            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
+            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
+            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
+        }
+    }
+
+```
+![image_2_2](image_2_2.png)
+
+
+## Section2.2 Surface transparent
+In this section we'll see hot to implement a trasnparent surface. The modifications that we have to do are the following:
+- add a boolean as parameter of the Sphere to know if it is transparent or not;
+- modify the function getColor, in case we have the boolean set to 1, we add to compute the rifraction of the ray and compute the tangent and the normal component
+- add another sphere at the center of the image in order to see the difference between trasnaprency and mirroring.
+
+```cpp
+Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
+
+    if (nbrebonds == 0) return Vector(0, 0, 0);
+
+    Vector P, N;
+    int sphere_id;
+    double t;
+    bool has_inter = s.intersect(r, P, N, sphere_id, t);
+
+    Vector intensite_pix(0, 0, 0);
+    if (has_inter) {
+
+        if (s.objects[sphere_id].is_transparent) {
+            double n1 = 1;
+            double n2 = 1.3;
+            Vector normale_pour_transparence(N);
+            if (dot(r.u, N) > 0) { // on sort de la sphere
+                n1 = 1.3;
+                n2 = 1;
+                normale_pour_transparence = - N;
+            }
+
+            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
+            if (radical > 0) {
+                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
+                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
+                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
+            }
+        }
+        else if (s.objects[sphere_id].is_mirror) {
+            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
+            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
+            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
+
+        }
+        else {
+
+            Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
+            Vector P_light, N_light;
+            int sphere_id_light;
+            double t_light;
+            bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+            double d_light2 = (s.position_light - P).norm2();
+            if (has_inter_light && t_light * t_light < d_light2) {
+                intensite_pix = Vector(0, 0, 0);
+            }
+            else {
+                intensite_pix = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+            }
+        }
+    }
+    return intensite_pix;
+}
+
+```
+
+![image_2_3](image_2_3.png)
 # BE-3 02/02/24
 
 # BE-4 09/02/24
