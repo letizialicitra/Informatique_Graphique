@@ -565,7 +565,100 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 ```
 
 ![image_2_3](image_2_3.png)
+
 # BE-3 02/02/24
+In this section we will implement the indirect enlightement, using the rendering equation and the Montecarlo integration.
+Important modifications in the code:
+- function getColor():
+ ```cpp
+
+// Function to calculate color for a pixel using ray tracing
+Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
+    if (nbrebonds == 0) return Vector(0, 0, 0);
+
+    Vector P, N;
+    int sphere_id;
+    double t;
+    bool has_inter = s.intersect(r, P, N, sphere_id, t);
+
+    Vector intensite_pix(0, 0, 0);
+    if (has_inter) {
+        // Handling transparency
+        if (s.objects[sphere_id].is_transparent) {
+            // Refraction
+            double n1 = 1;
+            double n2 = 1.3;
+            Vector normale_pour_transparence(N);
+            if (dot(r.u, N) > 0) {
+                n1 = 1.3;
+                n2 = 1;
+                normale_pour_transparence = -N;
+            }
+
+            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
+            if (radical > 0) {
+                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
+                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
+                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
+            }
+        }
+        // Handling mirrors
+        else if (s.objects[sphere_id].is_mirror) {
+            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
+            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
+            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
+        }
+        // Handling direct illumination
+        else {
+            Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
+            Vector P_light, N_light;
+            int sphere_id_light;
+            double t_light;
+            bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+            double d_light2 = (s.position_light - P).norm2();
+            if (has_inter_light && t_light * t_light < d_light2) {
+                intensite_pix = Vector(0, 0, 0);
+            }
+            else {
+                intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+            }
+        }
+        // Handling indirect illumination
+        double r1 = uniform(engine);
+        double r2 = uniform(engine);
+        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
+        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
+        Vector tangent_1 = cross(N, random);
+        tangent_1.normalize();
+        Vector tangent_2 = cross(tangent_1, N);
+        Vector random_direction = random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
+        Ray random_rayon(P + 0.001 * N, random_direction_local);
+        intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
+    }
+    return intensite_pix;
+}
+
+``` 
+-added rays in the main: 
+```cpp
+
+ const int number_of_rays = 8;
+
+#pragma omp parallel for private(objectId, best_t)
+    for (int i = 0; i < H; i++) {
+        for (int j = 0; j < W; j++) {
+            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
+            u.normalize();
+            Ray r(camera, u);
+            Vector color(0., 0., 0.);
+            for (int k = 0; k < number_of_rays; k++) {
+                color += getColor(r, s, 5) / number_of_rays;
+            } 
+        }
+    }
+```
+At the end, we should see a more diffuse and less sharp image.
+![image_3_1](image_3_1.png)
 
 # BE-4 09/02/24
 
