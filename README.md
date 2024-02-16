@@ -694,7 +694,10 @@ In order to solve the aliasing problem and to have more precision in the printed
 
 ```
 ![image_4_1](image_4_1.png)
-## Section4.2 Sweet Shadows 
+
+## Section4.2 Sweet Shadows
+First of all, we consider the light as a sphere that is part of the Scene. Inside the getColor function, if the sphere is the sphere of light, than we will return the color of the light divided by the area of the sphere. The result is an image full of noise.
+![image_4_2a](image_4_2a.png)
 # BE-5 16/02/24
 ```cpp
 

@@ -155,7 +155,7 @@ public:
 class Scene {
 public:
     std::vector<Sphere> objects; // Collection of spheres
-    Vector position_light;       // Position of the light source
+    Sphere *light;       //pointer to a spheric light source
     double intensity_light;      // Intensity of the light source
 
     Scene() {}
@@ -198,6 +198,12 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 
     Vector intensite_pix(0, 0, 0);
     if (has_inter) {
+
+
+        if (sphere_id == 0) { //the first sphere is the light
+            return s.light->albedo* s.intensity_light / (4*M_PI*s.light -> R* s.light->R);
+        }
+
         // Handling transparency
         if (s.objects[sphere_id].is_transparent) {
             // Refraction
@@ -225,18 +231,18 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
         }
         // Handling direct illumination
         else {
-            Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
-            Vector P_light, N_light;
-            int sphere_id_light;
-            double t_light;
-            bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-            double d_light2 = (s.position_light - P).norm2();
-            if (has_inter_light && t_light * t_light < d_light2) {
-                intensite_pix = Vector(0, 0, 0);
-            }
-            else {
-                intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
-            }
+            // Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
+            // Vector P_light, N_light;
+            // int sphere_id_light;
+            // double t_light;
+            // bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+            // double d_light2 = (s.position_light - P).norm2();
+            // if (has_inter_light && t_light * t_light < d_light2) {
+            //     intensite_pix = Vector(0, 0, 0);
+            // }
+            // else {
+            //     intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+            // }
         }
         // Handling indirect illumination
         double r1 = uniform(engine);
@@ -256,12 +262,15 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 int main() {
     int W = 512;
     int H = 512;
-    const int number_of_rays = 80;
+    const int number_of_rays = 8;
 
     double fov = 60 * M_PI / 180.0;
     double d = W / (2.0 * tan(fov / 2));
 
     Scene s;
+
+    Sphere sphere_light(Vector(-5, 30, 40), 5, Vector(1.,1.,1.));
+
     Sphere s1(Vector(0, 0, -55), 20., Vector(1, 0, 0));
     Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));
     Sphere s3(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9));
@@ -269,13 +278,15 @@ int main() {
     Sphere s5(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7));
     Sphere s6(Vector(0, 0, -1000), 900., Vector(0.2, 0.1, 0.1));
 
+    s.addSphere(sphere_light);
+
     s.addSphere(s1);
     s.addSphere(s2);
     s.addSphere(s3);
     s.addSphere(s4);
     s.addSphere(s5);
     s.addSphere(s6);
-    s.position_light = Vector(-5, 30, 40);
+    s.light = &sphere_light;
     s.intensity_light = 2E9;
     Vector camera(0, 0 , 55);
     std::vector<unsigned char> image(W * H * 3, 0);
@@ -310,7 +321,7 @@ int main() {
     }
 
     // Write the rendered image to file
-    stbi_write_png("image_4_1.png", W, H, 3, &image[0], 0);
+    stbi_write_png("image_4_2a.png", W, H, 3, &image[0], 0);
 
     return 0;
 }
