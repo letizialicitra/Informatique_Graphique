@@ -269,7 +269,7 @@ int main() {
 
     Scene s;
 
-    Sphere sphere_light(Vector(-5, 30, 40), 5, Vector(1.,1.,1.));
+    Sphere sphere_light(Vector(-5, 30, 40), 15, Vector(1.,1.,1.));
 
     Sphere s1(Vector(0, 0, -55), 20., Vector(1, 0, 0));
     Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));
@@ -321,7 +321,7 @@ int main() {
     }
 
     // Write the rendered image to file
-    stbi_write_png("image_4_2a.png", W, H, 3, &image[0], 0);
+    stbi_write_png("image_4_2b.png", W, H, 3, &image[0], 0);
 
     return 0;
 }
