@@ -14,8 +14,8 @@
 #define M_PI 3.14159265358979323846
 
 // Random number generator setup
-std::default_random_engine engine;
-std::uniform_real_distribution<double> uniform(0, 1);
+static std::default_random_engine engine;
+static std::uniform_real_distribution<double> uniform(0, 1);
 
 // Function to calculate square of a number
 static inline double sqr(double x) { return x * x; }
@@ -66,8 +66,11 @@ public:
         return Vector(-coord[0], -coord[1], -coord[2]);
     }
 
+ 
+
     double coord[3];
 };
+
 
 // Overloaded arithmetic operators for vector operations
 Vector operator+(const Vector& a, const Vector& b) {
@@ -106,6 +109,19 @@ Vector cross(const Vector& a, const Vector& b) {
                   a[2] * b[0] - a[0] * b[2],
                   a[0] * b[1] - a[1] * b[0]);
 }
+
+   Vector random_cos(const Vector &N){
+        double r1 = uniform(engine);
+        double r2 = uniform(engine);
+        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
+        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
+        Vector tangent_1 = cross(N, random);
+        tangent_1.normalize();
+        Vector tangent_2 = cross(tangent_1, N);
+      
+        return random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
+    }
+
 
 // Ray class representing a ray in 3D space
 class Ray {
@@ -199,11 +215,6 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
     Vector intensite_pix(0, 0, 0);
     if (has_inter) {
 
-
-        if (sphere_id == 0) { //the first sphere is the light
-            return s.light->albedo* s.intensity_light / (4*M_PI*s.light -> R* s.light->R);
-        }
-
         // Handling transparency
         if (s.objects[sphere_id].is_transparent) {
             // Refraction
@@ -244,20 +255,36 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
             //     intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
             // }
         }
+
+        Vector axe_OP = (P-s.light->C).getNormalized();
+        Vector random_direction = random_cos((P-s.light->C).getNormalized());
+        Vector random_point = random_direction* s.light->R + s.light->C;
+        Vector wi = (random_point - P).getNormalized();
+        double d_light_squared = (random_point - P).norm2();
+        Vector Np = random_direction;
+
+        Ray ray_light(P + 0.01 * N, wi);
+        Vector P_light, N_light;
+        int sphere_id_light;
+        double t_light;
+        bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+
+        if (has_inter_light && t_light * t_light < 0.99 * d_light_squared) {
+            intensite_pix = Vector(0, 0, 0);
+        }
+        else {
+        
+        intensite_pix = (s.intensity_light / (4*M_PI*d_light_squared) * std::max(0., dot(N, wi)) /dot(axe_OP,random_direction)) *s.objects[sphere_id].albedo;
+        }
         // Handling indirect illumination
-        double r1 = uniform(engine);
-        double r2 = uniform(engine);
-        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
-        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
-        Vector tangent_1 = cross(N, random);
-        tangent_1.normalize();
-        Vector tangent_2 = cross(tangent_1, N);
-        Vector random_direction = random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
-        Ray random_rayon(P + 0.001 * N, random_direction_local);
+     
+        Vector random_dir = random_cos(N);
+        Ray random_rayon(P + 0.001 * N, random_dir);
         intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
     }
     return intensite_pix;
 }
+
 
 int main() {
     int W = 512;
@@ -321,7 +348,7 @@ int main() {
     }
 
     // Write the rendered image to file
-    stbi_write_png("image_4_2b.png", W, H, 3, &image[0], 0);
+    stbi_write_png("image_4_2c.png", W, H, 3, &image[0], 0);
 
     return 0;
 }

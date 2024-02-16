@@ -661,7 +661,7 @@ At the end, we should see a more diffuse and less sharp image.
 ![image_3_1](image_3_1.png)
 
 # BE-4 09/02/24
-In this section we'll see how to add the antialiasing filter, sweet shadows and depth-of-field.
+In this section we'll see how to add the antialiasing filter, soft shadows and depth-of-field.
 ## Section4.1 Antialising filter
 In order to solve the aliasing problem and to have more precision in the printed image, we apply the antialising filter. It consists of a function used for assigning the weights at the closer pixels in order to do the sampling for every pixel. The modifications are the followings:
 ```cpp
@@ -700,6 +700,94 @@ First of all, we consider the light as a sphere that is part of the Scene. Insid
 ![image_4_2a](image_4_2a.png)
 Using a bigger sphere for the light, it is possible to notice less noise in the image.
 ![image_4_2b](image_4_2b.png)
+After that, we introduce the concept of soft shadows. We separate the emisphere of integration in two parts: the direct contribution is the one of the light sourcer project, the rest of the hemisphere is for indirect. We re-parametrize the rendering equation via a change of variable. Thus, we have to compute the determinant and the normal of the area patch. We create a new function called random_cos, that returns a random Vector that has more chances of being sampled around N than orthogonally to it. Inside the function getColor, we do other changes, mostly for the direct enlightement.
+```cpp
+// Function to calculate color for a pixel using ray tracing
+Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
+    if (nbrebonds == 0) return Vector(0, 0, 0);
+
+    Vector P, N;
+    int sphere_id;
+    double t;
+    bool has_inter = s.intersect(r, P, N, sphere_id, t);
+
+    Vector intensite_pix(0, 0, 0);
+    if (has_inter) {
+
+        // Handling transparency
+        if (s.objects[sphere_id].is_transparent) {
+            // Refraction
+            double n1 = 1;
+            double n2 = 1.3;
+            Vector normale_pour_transparence(N);
+            if (dot(r.u, N) > 0) {
+                n1 = 1.3;
+                n2 = 1;
+                normale_pour_transparence = -N;
+            }
+
+            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
+            if (radical > 0) {
+                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
+                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
+                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
+            }
+        }
+        // Handling mirrors
+        else if (s.objects[sphere_id].is_mirror) {
+            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
+            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
+            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
+        }
+        // Handling direct illumination
+        else {
+            // Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
+            // Vector P_light, N_light;
+            // int sphere_id_light;
+            // double t_light;
+            // bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+            // double d_light2 = (s.position_light - P).norm2();
+            // if (has_inter_light && t_light * t_light < d_light2) {
+            //     intensite_pix = Vector(0, 0, 0);
+            // }
+            // else {
+            //     intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+            // }
+        }
+
+        Vector axe_OP = (P-s.light->C).getNormalized();
+        Vector random_direction = random_cos((P-s.light->C).getNormalized());
+        Vector random_point = random_direction* s.light->R + s.light->C;
+        Vector wi = (random_point - P).getNormalized();
+        double d_light_squared = (random_point - P).norm2();
+        Vector Np = random_direction;
+
+        Ray ray_light(P + 0.01 * N, wi);
+        Vector P_light, N_light;
+        int sphere_id_light;
+        double t_light;
+        bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
+
+        if (has_inter_light && t_light * t_light < 0.99 * d_light_squared) {
+            intensite_pix = Vector(0, 0, 0);
+        }
+        else {
+        
+        intensite_pix = (s.intensity_light / (4*M_PI*d_light_squared) * std::max(0., dot(N, wi)) /dot(axe_OP,random_direction)) *s.objects[sphere_id].albedo;
+        }
+        // Handling indirect illumination
+     
+        Vector random_dir = random_cos(N);
+        Ray random_rayon(P + 0.001 * N, random_dir);
+        intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
+    }
+    return intensite_pix;
+}
+
+
+```
+Result: With respect to the previous one, it is possible to see less noise.
+![image_4_2c](image_4_2c.png)
 # BE-5 16/02/24
 ```cpp
 
