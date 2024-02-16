@@ -3,51 +3,50 @@
 #include <algorithm>
 #include <random>
 
-// Include STB image write and read implementations
+// STB Image library headers
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// Define PI for later use
+// Mathematical constant pi
 #define M_PI 3.14159265358979323846
 
+// Random number generator setup
 std::default_random_engine engine;
-std::uniform_real_distribution<double> uniform(0,1);
+std::uniform_real_distribution<double> uniform(0, 1);
 
-// Function to calculate the square of a number
+// Function to calculate square of a number
 static inline double sqr(double x) { return x * x; }
 
-// Vector class to represent 3D vectors
+// Vector class representing a 3D point
 class Vector {
 public:
-    // Constructor with default values
     explicit Vector(double x = 0, double y = 0, double z = 0) {
-        coord[0]=x;
-        coord[1]=y;
-        coord[2]=z;
+        coord[0] = x;
+        coord[1] = y;
+        coord[2] = z;
     }
-    // Access operacoord[1]=y;coord[2]=z;
+
+    // Overloaded subscript operator for accessing coordinates
     double& operator[](int i) { return coord[i]; }
     double operator[](int i) const { return coord[i]; }
 
-
     // Overloaded addition assignment operator
     Vector& operator+=(const Vector& v) {
-    coord[0] += v[0];
-    coord[1] += v[1];
-    coord[2] += v[2];
-    return *this;
+        coord[0] += v[0];
+        coord[1] += v[1];
+        coord[2] += v[2];
+        return *this;
     }
 
-
-    // Calculate the squared norm of the vector
+    // Function to calculate square of the norm of the vector
     double norm2() const {
         return sqr(coord[0]) + sqr(coord[1]) + sqr(coord[2]);
     }
 
-    // Normalize the vector
+    // Function to normalize the vector
     void normalize() {
         double n = sqrt(norm2());
         coord[0] /= n;
@@ -62,38 +61,34 @@ public:
         return result;
     }
 
-   
+    // Negation operator to get the negated vector
     Vector operator-() const {
         return Vector(-coord[0], -coord[1], -coord[2]);
     }
-    // Array to store the vector components
+
     double coord[3];
 };
 
-// Overloaded addition operator for vectors
+// Overloaded arithmetic operators for vector operations
 Vector operator+(const Vector& a, const Vector& b) {
     return Vector(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
 }
 
-// Overloaded subtraction operator for vectors
 Vector operator-(const Vector& a, const Vector& b) {
     return Vector(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
-// Overloaded multiplication operator for vector and scalar
 Vector operator*(const Vector& a, double b) {
     return Vector(a[0] * b, a[1] * b, a[2] * b);
+}
+
+Vector operator*(double a, const Vector& b) {
+    return Vector(a * b[0], a * b[1], a * b[2]);
 }
 
 Vector operator*(const Vector& a, const Vector& b) {
     return Vector(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
 }
-
-// Overloaded multiplication operator for scalar and vector
-Vector operator*(double a, const Vector& b) {
-    return Vector(a * b[0], a * b[1], a * b[2]);
-}
-
 
 // Overloaded division operator for vector and scalar
 Vector operator/(const Vector& a, double b) {
@@ -104,45 +99,45 @@ Vector operator/(const Vector& a, double b) {
 double dot(const Vector& a, const Vector& b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
+
+// Cross product of two vectors
 Vector cross(const Vector& a, const Vector& b) {
     return Vector(a[1] * b[2] - a[2] * b[1],
                   a[2] * b[0] - a[0] * b[2],
                   a[0] * b[1] - a[1] * b[0]);
 }
 
-// Class representing a ray in 3D space
+// Ray class representing a ray in 3D space
 class Ray {
 public:
-    Vector O; // Origin of the ray
-    Vector u; // Direction of the ray
+    Vector O; // Origin
+    Vector u; // Direction
 
-    // Constructor to initialize the ray with an origin and direction
     Ray(const Vector& O, const Vector& u) : O(O), u(u) {}
 };
 
-// Class representing a sphere in 3D space
+// Sphere class representing a sphere in 3D space
 class Sphere {
 public:
-    // Constructor to initialize the sphere with a center, radius, and surface color
-    Sphere(const Vector& c, double r, const Vector& a, bool is_mirror = false, bool is_transp = false) : C(c), R(r), albedo(a), is_mirror(is_mirror), is_transparent(is_transp) {};
-    Vector C;       // Center of the sphere
-    double R;       // Radius of the sphere
-    Vector albedo;  // Surface color of the sphere
-    bool is_mirror;
-    bool is_transparent;
+    Vector C;      // Center
+    double R;      // Radius
+    Vector albedo; // Surface color
+    bool is_mirror; // Whether the sphere behaves like a mirror
+    bool is_transparent; // Whether the sphere is transparent
+
+    Sphere(const Vector& c, double r, const Vector& a, bool is_mirror = false, bool is_transp = false)
+        : C(c), R(r), albedo(a), is_mirror(is_mirror), is_transparent(is_transp) {}
 
     // Function to check for intersection between the sphere and a ray
-bool intersect(const Ray& d, Vector& P, Vector& N, double& t) const{
-        // resout a*t*2 + b*t +c =c0
-
+    bool intersect(const Ray& d, Vector& P, Vector& N, double& t) const {
         double a = 1;
         double b = 2 * dot(d.u, d.O - C);
         double c = (d.O - C).norm2() - R * R;
 
         double delta = b * b - 4 * a * c;
         if (delta < 0) return false;
-        double t1 = (-b - sqrt(delta)) / 2 * a;
-        double t2 = (-b + sqrt(delta)) / 2 * a;
+        double t1 = (-b - sqrt(delta)) / (2 * a);
+        double t2 = (-b + sqrt(delta)) / (2 * a);
 
         if (t2 < 0) return false;
         if (t1 > 0)
@@ -156,12 +151,14 @@ bool intersect(const Ray& d, Vector& P, Vector& N, double& t) const{
     }
 };
 
-
-// Class representing a scene containing multiple spheres
+// Scene class representing a collection of spheres in 3D space
 class Scene {
 public:
-    // Default constructor
-    Scene() {};
+    std::vector<Sphere> objects; // Collection of spheres
+    Vector position_light;       // Position of the light source
+    double intensity_light;      // Intensity of the light source
+
+    Scene() {}
 
     // Function to add a sphere to the scene
     void addSphere(const Sphere& sphere) {
@@ -169,7 +166,7 @@ public:
     }
 
     // Function to check for intersection between the scene and a ray
-bool intersect(const Ray& d, Vector& P, Vector& N, int& sphere_id, double& min_t) const {
+    bool intersect(const Ray& d, Vector& P, Vector& N, int& sphere_id, double& min_t) const {
         bool has_inter = false;
         min_t = 1E99;
         for (int i = 0; i < objects.size(); ++i) {
@@ -188,16 +185,10 @@ bool intersect(const Ray& d, Vector& P, Vector& N, int& sphere_id, double& min_t
         }
         return has_inter;
     }
-    std::vector<Sphere> objects;
-    Vector position_light;
-    double intensity_light;
 };
 
- 
-
-
+// Function to calculate color for a pixel using ray tracing
 Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
-
     if (nbrebonds == 0) return Vector(0, 0, 0);
 
     Vector P, N;
@@ -207,17 +198,18 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 
     Vector intensite_pix(0, 0, 0);
     if (has_inter) {
-
+        // Handling transparency
         if (s.objects[sphere_id].is_transparent) {
+            // Refraction
             double n1 = 1;
             double n2 = 1.3;
             Vector normale_pour_transparence(N);
-            if (dot(r.u, N) > 0) { // on sort de la sphere
+            if (dot(r.u, N) > 0) {
                 n1 = 1.3;
                 n2 = 1;
-                normale_pour_transparence = - N;
+                normale_pour_transparence = -N;
             }
-            
+
             double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
             if (radical > 0) {
                 Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
@@ -225,14 +217,14 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
                 intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
             }
         }
+        // Handling mirrors
         else if (s.objects[sphere_id].is_mirror) {
             Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
             Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
             intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
-
         }
+        // Handling direct illumination
         else {
-            // contribution of the enlightenment direct
             Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
             Vector P_light, N_light;
             int sphere_id_light;
@@ -243,97 +235,82 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
                 intensite_pix = Vector(0, 0, 0);
             }
             else {
-                intensite_pix = s.objects[sphere_id].albedo /M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
+                intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
             }
-
-            //contribution of the enlightenment indirect
-            double r1 =  uniform(engine);
-            double r2 =  uniform(engine);
-
-            Vector random_direction_local(cos(2*M_PI *r1)*sqrt(1-r2),sin(2*M_PI*r1)*sqrt(1-r2),sqrt(r2)); 
-            Vector random(uniform(engine) - 0.5,uniform(engine) -0.5, uniform(engine) -0.5);
-            Vector tangent_1 = cross(N, random);
-            tangent_1.normalize();
-            Vector tangent_2 = cross(tangent_1, N);
-
-            Vector random_direction = random_direction_local[2]*N + random_direction_local[0]* tangent_1 + random_direction_local[1]*tangent_2;
-            Ray random_rayon (P + 0.001 * N, random_direction_local);
-
-            intensite_pix += getColor(random_rayon , s, nbrebonds - 1) * s.objects[sphere_id].albedo;
-        }   
+        }
+        // Handling indirect illumination
+        double r1 = uniform(engine);
+        double r2 = uniform(engine);
+        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
+        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
+        Vector tangent_1 = cross(N, random);
+        tangent_1.normalize();
+        Vector tangent_2 = cross(tangent_1, N);
+        Vector random_direction = random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
+        Ray random_rayon(P + 0.001 * N, random_direction_local);
+        intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
     }
     return intensite_pix;
 }
 
-
 int main() {
     int W = 512;
     int H = 512;
-    const int number_of_rays = 8;
+    const int number_of_rays = 80;
 
     double fov = 60 * M_PI / 180.0;
     double d = W / (2.0 * tan(fov / 2));
 
-   
-
-    //with this 2 you can reflect the color of the top on the ground: look at the z parameter, they are inversed! And this works just having as y (or as x -> you will have left and right of the same color) 10 or -10
-    //  s.addSphere(Sphere(Vector(0, -10, 55), 10., Vector(0, 0.971, 0),true));         // ball in the center
-    // s.addSphere(Sphere(Vector(0, 10, -55), 10., Vector(0, 0.971, 0),true));         // ball in the center
-     // Create the scene and add spheres to it
-    
-   
     Scene s;
-    Sphere s1(Vector(0, 0, -55), 20., Vector(1,0,0));
-    //Sphere s1bis(Vector(15, 0, -55), 10., Vector(1,0,0));
-    Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));   // from below
-    Sphere s3(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9));    // from up
-    Sphere s4(Vector(-1000, 0, 0), 965., Vector(0.0, 0.2, 0.9));   // from left
-    Sphere s5(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7));    // from right
-    Sphere s6(Vector(0, 0, -1000), 900., Vector(0.2, 0.1, 0.1));   // background !it is important to have the radius no more than 900, otherwise it is not possible to see the transparency
-    // for example, if you put s6 with radius equal to 940, the spheres at the center will be too close to the background, so the shadow will cover the trasnparrency effect
+    Sphere s1(Vector(0, 0, -55), 20., Vector(1, 0, 0));
+    Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));
+    Sphere s3(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9));
+    Sphere s4(Vector(-1000, 0, 0), 965., Vector(0.0, 0.2, 0.9));
+    Sphere s5(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7));
+    Sphere s6(Vector(0, 0, -1000), 900., Vector(0.2, 0.1, 0.1));
 
- 
     s.addSphere(s1);
-    //s.addSphere(s1bis);
     s.addSphere(s2);
     s.addSphere(s3);
     s.addSphere(s4);
     s.addSphere(s5);
     s.addSphere(s6);
-    s.position_light = Vector(0, 30, 20);
+    s.position_light = Vector(-5, 30, 40);
     s.intensity_light = 2E9;
-    Vector camera(0, 0 , 55);    // Set up the camera position
-  
-   
-    // Create an image buffer
+    Vector camera(0, 0 , 55);
     std::vector<unsigned char> image(W * H * 3, 0);
 
-    // int objectId;
-    // double best_t;
+    int objectId;
+    double best_t;
 
-    // Ray tracing loop
-#pragma omp parallel for 
+#pragma omp parallel for schedule (dynamic,1)
     for (int i = 0; i < H; i++) {
         for (int j = 0; j < W; j++) {
-            // Calculate the ray direction based on the camera and image coordinates
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Ray r(camera, u);
+            
+            Vector color(0., 0., 0.);
+            for (int k = 0; k < number_of_rays; k++) {
+               //methode Box Muller 
+                double r1 = uniform(engine);
+                double r2 = uniform(engine);
+                double R = sqrt(-2*log(r1));
+                double dx = R*cos(2*M_PI*r2);
+                double dy = R*sin(2*M_PI*r2);
 
-            Vector color(0.,0.,0.);
-            for (int k=0; k<number_of_rays; k++){
-                color += getColor(r,s,5)/number_of_rays;
+
+                Vector u(j - W / 2. + 0.5 + dx, -i + H / 2. - 0.5 + dy, -d);
+                u.normalize();
+                Ray r(camera, u);
+                color += getColor(r, s, 5) / number_of_rays;
             } 
-           
             // Apply gamma correction and store the color values in the image buffer
             image[(i * W + j) * 3 + 0] = std::min(255., std::max(0., std::pow(color[0], 1 / 2.2))); // RED
             image[(i * W + j) * 3 + 1] = std::min(255., std::max(0., std::pow(color[1], 1 / 2.2))); // GREEN
-            image[(i * W + j) * 3 + 2] = std::min(255., std::max(0., std::pow(color[2], 1 / 2.2)));  // BLUE
+            image[(i * W + j) * 3 + 2] = std::min(255., std::max(0., std::pow(color[2], 1 / 2.2))); // BLUE
         }
     }
 
-    // Save the rendered image to a file
-    stbi_write_png("image.png", W, H, 3, &image[0], 0);
+    // Write the rendered image to file
+    stbi_write_png("image_4_1.png", W, H, 3, &image[0], 0);
 
     return 0;
 }

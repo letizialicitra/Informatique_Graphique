@@ -661,7 +661,41 @@ At the end, we should see a more diffuse and less sharp image.
 ![image_3_1](image_3_1.png)
 
 # BE-4 09/02/24
+In this section we'll see how to add the antialiasing filter, sweet shadows and depth-of-field.
+## Section4.1 Antialising filter
+In order to solve the aliasing problem and to have more precision in the printed image, we apply the antialising filter. It consists of a function used for assigning the weights at the closer pixels in order to do the sampling for every pixel. The modifications are the followings:
+```cpp
 
+#pragma omp parallel for private(objectId, best_t)
+    for (int i = 0; i < H; i++) {
+        for (int j = 0; j < W; j++) {
+            
+            Vector color(0., 0., 0.);
+            for (int k = 0; k < number_of_rays; k++) {
+               //methode Box Muller 
+                double r1 = uniform(engine);
+                double r2 = uniform(engine);
+                double R = sqrt(-2*log(r1));
+                double dx = R*cos(2*M_PI*r2);
+                double dy = R*sin(2*M_PI*r2);
+
+
+                Vector u(j - W / 2. + 0.5 + dx, -i + H / 2. - 0.5 + dy, -d);
+                u.normalize();
+                Ray r(camera, u);
+                color += getColor(r, s, 5) / number_of_rays;
+            } 
+            // Apply gamma correction and store the color values in the image buffer
+            image[(i * W + j) * 3 + 0] = std::min(255., std::max(0., std::pow(color[0], 1 / 2.2))); // RED
+            image[(i * W + j) * 3 + 1] = std::min(255., std::max(0., std::pow(color[1], 1 / 2.2))); // GREEN
+            image[(i * W + j) * 3 + 2] = std::min(255., std::max(0., std::pow(color[2], 1 / 2.2))); // BLUE
+        }
+    }
+
+```
+![image_4_1](image_4_1.png)
+## Section4.2 Sweet Shadows 
+# BE-5 16/02/24
 ```cpp
 
 
