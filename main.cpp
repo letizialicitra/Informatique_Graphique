@@ -66,11 +66,8 @@ public:
         return Vector(-coord[0], -coord[1], -coord[2]);
     }
 
- 
-
     double coord[3];
 };
-
 
 // Overloaded arithmetic operators for vector operations
 Vector operator+(const Vector& a, const Vector& b) {
@@ -110,18 +107,17 @@ Vector cross(const Vector& a, const Vector& b) {
                   a[0] * b[1] - a[1] * b[0]);
 }
 
-   Vector random_cos(const Vector &N){
-        double r1 = uniform(engine);
-        double r2 = uniform(engine);
-        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
-        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
-        Vector tangent_1 = cross(N, random);
-        tangent_1.normalize();
-        Vector tangent_2 = cross(tangent_1, N);
-      
-        return random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
-    }
-
+Vector random_cos(const Vector &N) {
+    double r1 = uniform(engine);
+    double r2 = uniform(engine);
+    Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
+    Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
+    Vector tangent_1 = cross(N, random);
+    tangent_1.normalize();
+    Vector tangent_2 = cross(tangent_1, N);
+  
+    return random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
+}
 
 // Ray class representing a ray in 3D space
 class Ray {
@@ -254,8 +250,7 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
             // else {
             //     intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
             // }
-        }
-
+        
         Vector axe_OP = (P-s.light->C).getNormalized();
         Vector random_direction = random_cos((P-s.light->C).getNormalized());
         Vector random_point = random_direction* s.light->R + s.light->C;
@@ -269,6 +264,7 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
         double t_light;
         bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
 
+    
         if (has_inter_light && t_light * t_light < 0.99 * d_light_squared) {
             intensite_pix = Vector(0, 0, 0);
         }
@@ -282,9 +278,9 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
         Ray random_rayon(P + 0.001 * N, random_dir);
         intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
     }
+}
     return intensite_pix;
 }
-
 
 int main() {
     int W = 512;
@@ -298,7 +294,9 @@ int main() {
 
     Sphere sphere_light(Vector(-5, 30, 40), 15, Vector(1.,1.,1.));
 
-    Sphere s1(Vector(0, 0, -55), 20., Vector(1, 0, 0));
+    Sphere s1(Vector(0, 0, -55), 10., Vector(1, 0, 0));
+    Sphere s1b(Vector(-15, 0, -35), 10., Vector(1, 1, 0.2),false,true);
+    Sphere s1c(Vector(15, 0, -75), 10., Vector(1, 0, 1),true);
     Sphere s2(Vector(0, -1000, 0), 960., Vector(0.0, 0.4, 0.14));
     Sphere s3(Vector(0, 1000, 0), 960., Vector(0.2, 0.2, 0.9));
     Sphere s4(Vector(-1000, 0, 0), 965., Vector(0.0, 0.2, 0.9));
@@ -308,14 +306,17 @@ int main() {
     s.addSphere(sphere_light);
 
     s.addSphere(s1);
+    s.addSphere(s1b);
+    s.addSphere(s1c);
     s.addSphere(s2);
     s.addSphere(s3);
     s.addSphere(s4);
     s.addSphere(s5);
     s.addSphere(s6);
     s.light = &sphere_light;
-    s.intensity_light = 2E9;
-    Vector camera(0, 0 , 55);
+    s.intensity_light = 5E9;
+    Vector camera(0, 0 , 0);
+    double focus_distance = 55;
     std::vector<unsigned char> image(W * H * 3, 0);
 
     int objectId;
@@ -334,10 +335,15 @@ int main() {
                 double dx = R*cos(2*M_PI*r2);
                 double dy = R*sin(2*M_PI*r2);
 
+                double dx_aperture = (uniform(engine) - 0.5)*5.;
+                double dy_aperture = (uniform(engine) - 0.5)*5.;
 
                 Vector u(j - W / 2. + 0.5 + dx, -i + H / 2. - 0.5 + dy, -d);
                 u.normalize();
-                Ray r(camera, u);
+
+                Vector destination = camera + focus_distance * u;
+                Vector new_origin = camera + Vector(dx_aperture, dy_aperture, 0);
+                Ray r(new_origin, (destination - new_origin).getNormalized());
                 color += getColor(r, s, 5) / number_of_rays;
             } 
             // Apply gamma correction and store the color values in the image buffer
@@ -348,7 +354,7 @@ int main() {
     }
 
     // Write the rendered image to file
-    stbi_write_png("image_4_2c.png", W, H, 3, &image[0], 0);
+    stbi_write_png("image_4_3.png", W, H, 3, &image[0], 0);
 
     return 0;
 }

@@ -697,9 +697,13 @@ In order to solve the aliasing problem and to have more precision in the printed
 
 ## Section4.2 Sweet Shadows
 First of all, we consider the light as a sphere that is part of the Scene. Inside the getColor function, if the sphere is the sphere of light, than we will return the color of the light divided by the area of the sphere. The result is an image full of noise.
+
+
 ![image_4_2a](image_4_2a.png)
+
 Using a bigger sphere for the light, it is possible to notice less noise in the image.
 ![image_4_2b](image_4_2b.png)
+
 After that, we introduce the concept of soft shadows. We separate the emisphere of integration in two parts: the direct contribution is the one of the light sourcer project, the rest of the hemisphere is for indirect. We re-parametrize the rendering equation via a change of variable. Thus, we have to compute the determinant and the normal of the area patch. We create a new function called random_cos, that returns a random Vector that has more chances of being sampled around N than orthogonally to it. Inside the function getColor, we do other changes, mostly for the direct enlightement.
 ```cpp
 // Function to calculate color for a pixel using ray tracing
@@ -787,7 +791,15 @@ Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
 
 ```
 Result: With respect to the previous one, it is possible to see less noise.
+
 ![image_4_2c](image_4_2c.png)
+
+## Section 4.3 Depth of field
+Due to the fact that the generated images are sharp at all distances, we will implement the depth of field: in this way all the points at the focus distance should describe a plane where points project to points on the sensor and remain sharp, and light passes through the aperture before reaching the lens.
+The modifications are all in the main part, regarding the camera.
+It is possible to notice that there is more deep in the image, that gives a certain sense of perspective. 
+
+![image_4_3](image_4_3.png)
 # BE-5 16/02/24
 ```cpp
 
