@@ -2,7 +2,7 @@
 The objective of this project is to implement path tracing, a sophisticated rendering technique utilized for generating lifelike images by replicating the intricate behavior of light within a three-dimensional environment. Each BE will incorporate distinct functionalities to enhance the rendering process. C++ has been selected as the programming language for its efficiency and versatility in handling complex computations required for path tracing.
 
 
-# BE-0 
+# BE-0
 Before making any changes, it's crucial to analyze the existing code.
 
 These are the important features:
@@ -89,13 +89,13 @@ This is the image obtained at the end of the section:
 # BE-2 19/01/24
 ## 2.1 Shadows
 
-In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared*, calculated as 
-$$ 
-(\text{light} - \mathbf{P}).\text{norm2()} 
+In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared*, calculated as
+$$
+(\text{light} - \mathbf{P}).\text{norm2()}
 $$
  the color will be set to black, resulting in a shadow effect.
 
-Moreover, we can incorporate **gamma correction** to enhance the precision of color intensity. This involves raising the RGB values (within a normalized range [0, 1]) to the power of $1/\gamma$, typically where $\gamma = 2.2$. 
+Moreover, we can incorporate **gamma correction** to enhance the precision of color intensity. This involves raising the RGB values (within a normalized range [0, 1]) to the power of $1/\gamma$, typically where $\gamma = 2.2$.
 
 This is the result obtained: it is possible to notice the shadow beneath the central ball, extending onto the floor.
 
@@ -129,21 +129,21 @@ The behavior of **transparent surfaces** is analogous to that of mirrors, with r
 
 Decomposing the transmitted direction $\omega_t$ into tangential and normal components ($\omega_{T}^{t}$ and $\omega_{N}^{t}$, respectively), we can derive that:
 $$
-\omega_{T}^{t} = \frac{n_1}{n_2} (\omega_i - \langle \omega_i, \mathbf{N} \rangle \mathbf{N}) 
+\omega_{T}^{t} = \frac{n_1}{n_2} (\omega_i - \langle \omega_i, \mathbf{N} \rangle \mathbf{N})
 $$
 Where we utilize the fact that the tangential component of $\omega_i$ is obtained by subtracting its normal component (its projection onto $\mathbf{N}$).
 
 Regarding the normal component, we have:
 $$
- \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \sin^2 \theta_t} 
+ \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \sin^2 \theta_t}
 $$
 Considering the normal $\mathbf{N}$ points towards the incoming ray. This simplifies to:
 $$
- \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2} \sin \theta_i\right)^2} 
+ \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2} \sin \theta_i\right)^2}
 $$
 The cosine term can be computed by projecting onto the normal $\mathbf{N}$, resulting in:
 $$
-\omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)} 
+\omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)}
 $$
 From this equation, one can observe that if $1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)$ becomes negative, the square root would yield imaginary results. This can only occur if $n_1 > n_2$. This corresponds to total internal reflection, and occurs if $\sin \theta_i > \frac{n_2}{n_1}$.
 
@@ -161,13 +161,13 @@ In this image, you can observe both the transparency and mirror effects.
 
 The rendering equation, governing the outgoing spectral radiance (i.e., the output of `Scene::getColor`), is expressed as follows:
 $$
-L_o(x, \omega_o, \lambda, t) = L_e(x, \omega_o, \lambda, t) + \int_{\Omega} f(x, \omega_i, \omega_o, \lambda, t)L_i(x, \omega_i, \lambda, t)\langle \omega_i, \mathbf{N} \rangle d\omega_i 
+L_o(x, \omega_o, \lambda, t) = L_e(x, \omega_o, \lambda, t) + \int_{\Omega} f(x, \omega_i, \omega_o, \lambda, t)L_i(x, \omega_i, \lambda, t)\langle \omega_i, \mathbf{N} \rangle d\omega_i
 $$
 This equation specifies that the color at a point `x` in the scene, evaluated at intersection points `P`, is contingent upon various factors. These include the direction of the ray `-ω_o`, the light wavelength `λ`, and a time parameter `t`. It yields the combined effect of emitted light `L_e` at `x` in the direction `ω_o`, along with the contribution of reflected light at the same point. The reflected light at `x` comprises the sum of all incoming light contributions `L_i` from the hemisphere `Ω` incident on `x`. This summation is modulated by the Bidirectional Reflectance Distribution Function (BRDF) `f`, which characterizes the appearance or shininess of materials, and a dot product/cosine function accounting for the projected area of light sources.
 
 A remarkable observation is that the incoming light at point `x` from direction `ω_i` equals the outgoing light at a point `x'` from direction `-ω_i`, assuming a vacuum medium. By utilizing the rendering equation at point `x'`, we can reformulate the equation previously mentioned at point `x`:
 $$
-L_o(x, \omega_o) = L_e(x, \omega_o) + \int_{\Omega} f(x, \omega_i, \omega_o) \left( L_e(x, \omega_o) + \int_{\Omega'} f(x', \omega_i', -\omega_i)L_i(x', \omega_i')\langle \omega_i', \mathbf{N}' \rangle d\omega_i' \right) \langle \omega_i, \mathbf{N} \rangle d\omega_i 
+L_o(x, \omega_o) = L_e(x, \omega_o) + \int_{\Omega} f(x, \omega_i, \omega_o) \left( L_e(x, \omega_o) + \int_{\Omega'} f(x', \omega_i', -\omega_i)L_i(x', \omega_i')\langle \omega_i', \mathbf{N}' \rangle d\omega_i' \right) \langle \omega_i, \mathbf{N} \rangle d\omega_i
 $$
 Consequently, the illumination reaching point `x'` originates from other locations in the scene, leading to a recursive process. This necessitates integration over an infinite-dimensional domain known as Path Space, representing a sum of light paths with 0, 1, 2,... ∞ bounces, which must be computed numerically.
 
@@ -208,19 +208,19 @@ $$
 L_o(x, \omega_o) = \frac{\rho}{\pi} \int_{\Omega} L_i(x, \omega_i) \langle \omega_i, \mathbf{N} \rangle \, d\omega_i
 $$
 
-To perform importance sampling in this scenario, we ideally want to sample the integrand 
+To perform importance sampling in this scenario, we ideally want to sample the integrand
 
 $$
 L_i(x, \omega_i) \langle \omega_i, \mathbf{N} \rangle
 $$
 
-However, as mentioned earlier, this is not straightforward (otherwise, the problem would be already solved). A simple approach is to sample only according to the second term 
+However, as mentioned earlier, this is not straightforward (otherwise, the problem would be already solved). A simple approach is to sample only according to the second term
 
 $$
 \langle \omega_i, \mathbf{N} \rangle
 $$
 
-Assuming 
+Assuming
 
 $$
 \mathbf{N} = (0, 0, 1)
@@ -290,7 +290,7 @@ After that, we introduce the concept of soft shadows. We separate the hemisphere
 
 ## Section 4.3 Depth of field
 Due to the fact that the generated images are sharp at all distances, we will implement the depth of field: in this way all the points at the focus distance should describe a plane where points project to points on the sensor and remain sharp, and light passes through the aperture before reaching the lens.
-It is possible to notice that there is more deep in the image, that gives a certain sense of perspective. 
+It is possible to notice that there is more deep in the image, that gives a certain sense of perspective.
 
 ![image_4_3](image_4_3.png)
 
