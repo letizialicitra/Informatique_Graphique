@@ -37,8 +37,9 @@ On the other hand, a sphere centered at $C$ with radius $R$ is defined implicitl
 
 Any point of intersection $P$, if it exists, must satisfy both equations. Substituting the ray equation into the sphere equation yields $\|O + t \mathbf{u} - C\|^2 = R^2$.
 Expanding the squared norm and leveraging scalar product bilinearity, we arrive at the quadratic equation:
-\[t^2 + 2t\langle\mathbf{u}, O - C\rangle + \|O - C\|^2 - R^2 = 0\]
-
+$$
+t^2 + 2t\langle\mathbf{u}, O - C\rangle + \|O - C\|^2 - R^2 = 0
+$$
 This quadratic equation yields $0$, $1$, or $2$ real solutions, depending on the discriminant $\Delta = \langle\mathbf{u}, O - C\rangle^2 - (\|O - C\|^2 - R^2)$.
 Geometrically, if $\Delta < 0$, the line (not the ray) does not intersect the sphere. If $\Delta = 0$, there's a single (double) intersection, and if $\Delta > 0$, there are two intersections.
 However, we need to ensure that the solution parameter $t$ is non-negative to prevent intersections behind the ray origin.
@@ -61,7 +62,7 @@ The Lambertian lighting model describes how surfaces reflect light uniformly in 
 
 To achieve this, it's crucial to compute the pixel intensity when an intersection occurs. This involves considering the albedo (representing the object's color) and the light intensity, initially set at $2 \times 10^6$. Additionally, we compute the diffuse reflection using the formula:
 $$
-\text{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position\_light} - \mathbf{P}) \rangle}{\| \text{position\_light} - \mathbf{P} \| ^2}\right)
+{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position\_light} - \mathbf{P}) \rangle}{\| \text{position\_light} - \mathbf{P} \| ^2}\right)
 $$
 where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and ${position\_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
 
@@ -125,6 +126,7 @@ Decomposing the transmitted direction $\omega_t$ into tangential and normal comp
 $$
 \omega_{T}^{t} = \frac{n_1}{n_2} (\omega_i - \langle \omega_i, \mathbf{N} \rangle \mathbf{N})
 $$
+
 Where we utilize the fact that the tangential component of $\omega_i$ is obtained by subtracting its normal component (its projection onto $\mathbf{N}$).
 
 Regarding the normal component, we have:
