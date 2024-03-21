@@ -91,7 +91,7 @@ This is the image obtained at the end of the section:
 
 In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared*, calculated as
 $$
-(\text{light} - \mathbf{P}).\text{norm2()}
+({light} - \mathbf{P}).\text{norm2()}
 $$
  the color will be set to black, resulting in a shadow effect.
 
