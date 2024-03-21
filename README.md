@@ -37,10 +37,13 @@ On the other hand, a sphere centered at $C$ with radius $R$ is defined implicitl
 
 Any point of intersection $P$, if it exists, must satisfy both equations. Substituting the ray equation into the sphere equation yields $\|O + t \mathbf{u} - C\|^2 = R^2$.
 Expanding the squared norm and leveraging scalar product bilinearity, we arrive at the quadratic equation:
+
 $$
 t^2 + 2t\langle\mathbf{u}, O - C\rangle + \|O - C\|^2 - R^2 = 0
 $$
-This quadratic equation yields $0$, $1$, or $2$ real solutions, depending on the discriminant $\Delta = \langle\mathbf{u}, O - C\rangle^2 - (\|O - C\|^2 - R^2)$.
+
+This quadratic equation yields 0, 1, or 2 real solutions, depending on the discriminant.
+$\Delta = \langle\mathbf{u}, O - C\rangle^2 - (\|O - C\|^2 - R^2)$.
 Geometrically, if $\Delta < 0$, the line (not the ray) does not intersect the sphere. If $\Delta = 0$, there's a single (double) intersection, and if $\Delta > 0$, there are two intersections.
 However, we need to ensure that the solution parameter $t$ is non-negative to prevent intersections behind the ray origin.
 
