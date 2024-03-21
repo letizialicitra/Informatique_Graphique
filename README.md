@@ -66,7 +66,7 @@ The Lambertian lighting model describes how surfaces reflect light uniformly in 
 To achieve this, it's crucial to compute the pixel intensity when an intersection occurs. This involves considering the albedo (representing the object's color) and the light intensity, initially set at $2 \times 10^6$. Additionally, we compute the diffuse reflection using the formula:
 
 $$
-{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position_light} - \mathbf{P}) \rangle}{\| \text{position_light} - \mathbf{P} \| ^2}\right)
+{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{positionlight} - \mathbf{P}) \rangle}{\| \text{positionlight} - \mathbf{P} \| ^2}\right)
 $$
 
 where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and ${position\_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
