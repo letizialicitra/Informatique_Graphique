@@ -64,9 +64,11 @@ At the end of this section, we will obtain a white sphere on a black background.
 The Lambertian lighting model describes how surfaces reflect light uniformly in all directions, regardless of the observer's viewpoint. A Lambertian surface is one that exhibits diffuse reflection, scattering light equally in all directions.
 
 To achieve this, it's crucial to compute the pixel intensity when an intersection occurs. This involves considering the albedo (representing the object's color) and the light intensity, initially set at $2 \times 10^6$. Additionally, we compute the diffuse reflection using the formula:
+
 $$
 {std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position\_light} - \mathbf{P}) \rangle}{\| \text{position\_light} - \mathbf{P} \| ^2}\right)
 $$
+
 where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and ${position\_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
 
 For further lighting computation, we also need to determine the unit normal $\mathbf{N}$ at $P$, which can be calculated as $\mathbf{N} = \dfrac{P - C}{\|P - C\|}$.
@@ -126,6 +128,7 @@ This is the result:
 The behavior of **transparent surfaces** is analogous to that of mirrors, with rays continuing their trajectory after bouncing off the surface, but this time, passing through it. However, computing the direction of reflection is slightly more complex. We employ Snell's law, expressed as $n_1 \sin \theta_i = n_2 \sin \theta_t$. This law states that the tangential component of the transmitted ray ($\sin \theta_t$) is stretched relative to that of the incident ray ($\sin \theta_i$) by a factor of $n_1/n_2$.
 
 Decomposing the transmitted direction $\omega_t$ into tangential and normal components ($\omega_{T}^{t}$ and $\omega_{N}^{t}$, respectively), we can derive that:
+
 $$
 \omega_{T}^{t} = \frac{n_1}{n_2} (\omega_i - \langle \omega_i, \mathbf{N} \rangle \mathbf{N})
 $$
@@ -133,17 +136,23 @@ $$
 Where we utilize the fact that the tangential component of $\omega_i$ is obtained by subtracting its normal component (its projection onto $\mathbf{N}$).
 
 Regarding the normal component, we have:
+
 $$
  \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \sin^2 \theta_t}
 $$
+
 Considering the normal $\mathbf{N}$ points towards the incoming ray. This simplifies to:
+
 $$
  \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2} \sin \theta_i\right)^2}
 $$
+
 The cosine term can be computed by projecting onto the normal $\mathbf{N}$, resulting in:
+
 $$
 \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)}
 $$
+
 From this equation, one can observe that if $1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)$ becomes negative, the square root would yield imaginary results. This can only occur if $n_1 > n_2$. This corresponds to total internal reflection, and occurs if $\sin \theta_i > \frac{n_2}{n_1}$.
 
 The modification to the code involves adding an if statement to handle the transparency effect inside the *getColor* function. If the object is transparent and has refractive indices $n_1$ and $n_2$, we compute the normal direction. It's important to note that if $n_1 > n_2$, the normal direction should be negated, so we take its absolute value. We then determine the tangential direction of refraction using the formula seen above. Subsequently, we create the refracted ray and call the *getColor* function again, reducing the *number_of_rebonds* parameter by 1.
@@ -159,15 +168,19 @@ In this image, you can observe both the transparency and mirror effects.
 ### The Rendering Equation
 
 The rendering equation, governing the outgoing spectral radiance (i.e., the output of `Scene::getColor`), is expressed as follows:
+
 $$
 L_o(x, \omega_o, \lambda, t) = L_e(x, \omega_o, \lambda, t) + \int_{\Omega} f(x, \omega_i, \omega_o, \lambda, t)L_i(x, \omega_i, \lambda, t)\langle \omega_i, \mathbf{N} \rangle d\omega_i
 $$
+
 This equation specifies that the color at a point `x` in the scene, evaluated at intersection points `P`, is contingent upon various factors. These include the direction of the ray `-ω_o`, the light wavelength `λ`, and a time parameter `t`. It yields the combined effect of emitted light `L_e` at `x` in the direction `ω_o`, along with the contribution of reflected light at the same point. The reflected light at `x` comprises the sum of all incoming light contributions `L_i` from the hemisphere `Ω` incident on `x`. This summation is modulated by the Bidirectional Reflectance Distribution Function (BRDF) `f`, which characterizes the appearance or shininess of materials, and a dot product/cosine function accounting for the projected area of light sources.
 
 A remarkable observation is that the incoming light at point `x` from direction `ω_i` equals the outgoing light at a point `x'` from direction `-ω_i`, assuming a vacuum medium. By utilizing the rendering equation at point `x'`, we can reformulate the equation previously mentioned at point `x`:
+
 $$
 L_o(x, \omega_o) = L_e(x, \omega_o) + \int_{\Omega} f(x, \omega_i, \omega_o) \left( L_e(x, \omega_o) + \int_{\Omega'} f(x', \omega_i', -\omega_i)L_i(x', \omega_i')\langle \omega_i', \mathbf{N}' \rangle d\omega_i' \right) \langle \omega_i, \mathbf{N} \rangle d\omega_i
 $$
+
 Consequently, the illumination reaching point `x'` originates from other locations in the scene, leading to a recursive process. This necessitates integration over an infinite-dimensional domain known as Path Space, representing a sum of light paths with 0, 1, 2,... ∞ bounces, which must be computed numerically.
 
 ## Bidirectional Reflectance Distribution Functions (BRDFs)
