@@ -1,698 +1,274 @@
 # Informatique_Graphique
-The aim of the course is to implement path tracing: it is a rendering technique used to generate realistic images by simulating the behavior of light within a three-dimensional sceneDifferent functionalities will be implemented at each BE.
+The objective of this project is to implement path tracing, a sophisticated rendering technique utilized for generating lifelike images by replicating the intricate behavior of light within a three-dimensional environment. Each BE will incorporate distinct functionalities to enhance the rendering process. C++ has been selected as the programming language for its efficiency and versatility in handling complex computations required for path tracing.
+
 
 # BE-0 
-Before making any modifications, this code is the starting point.
+Before making any changes, it's crucial to analyze the existing code.
 
-```cpp
-#define _CRT_SECURE_NO_WARNINGS 1
-#include <vector>
+These are the important features:
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-static inline double sqr(double x) { return x * x; }
-
-class Vector {
-public:
-    explicit Vector(double x = 0, double y = 0, double z = 0) {
-        coord[0] = x;
-        coord[1] = y;
-        coord[2] = z;
-    }
-    double& operator[](int i) { return coord[i]; }
-    double operator[](int i) const { return coord[i]; }
-
-    Vector& operator+=(const Vector& v) {
-        coord[0] += v[0];
-        coord[1] += v[1];
-        coord[2] += v[2];
-        return *this;
-    }
-
-    double norm2() const {
-        return sqr(coord[0]) + sqr(coord[1]) + sqr(coord[2]);
-    }
-
-    double coord[3];
-};
-
-Vector operator+(const Vector& a, const Vector& b) {
-    return Vector(a[0] + b[0], a[1] + b[1], a[2] + b[2]);
-}
-Vector operator-(const Vector& a, const Vector& b) {
-    return Vector(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-}
-Vector operator*(const Vector& a, double b) {
-    return Vector(a[0]*b, a[1]*b, a[2]*b);
-}
-Vector operator*(double a, const Vector& b) {
-    return Vector(a*b[0], a*b[1], a*b[2]);
-}
-
-double dot(const Vector& a, const Vector& b) {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-int main() {
-    int W = 512;
-    int H = 512;
-
-    Vector center(0.2, 0.1, 0.);
-
-    std::vector<unsigned char> image(W*H * 3, 0);
-#pragma omp parallel for
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            
-            Vector v(j / (double)W - 0.5, i / (double)H - 0.5, 0.);
-            double gaussianVal = exp(-(v-center).norm2()/(2*sqr(0.2)));
-
-            image[(i*W + j) * 3 + 0] = 127* gaussianVal;   // RED
-            image[(i*W + j) * 3 + 1] = 50 * gaussianVal;  // GREEN
-            image[(i*W + j) * 3 + 2] = 255 * gaussianVal;  // BLUE
-        }
-    }
-    stbi_write_png("image.png", W, H, 3, &image[0], 0);
-
-    return 0;
-}
-```
-
-- `Vector` class represents a 3D vector and provides methods for vector operations such as addition, subtraction, multiplication, and calculating the squared norm.
-- The `main()` function initializes the width `W` and height `H` of the image and creates a vector to store the image data.
+- The code includes two specific modules, **stb_image_write.h** and **stb_image.h**, which encompass various functionalities related to image manipulation and processing.
+- **Vector class**: The Vector class represents a 3D vector that stores 3 doubles and provides methods for vector operations such as addition, subtraction, multiplication, and calculating the squared norm.
+- The **main() function** initializes the width W and height H of the image and creates a vector to store the image data.
 - The nested loops iterate over each pixel of the image.
-- Inside the loops, it calculates the Gaussian value at each pixel using the formula `exp(-(v-center).norm2()/(2*sqr(0.2)))`, where `v` is the vector representing the current pixel position, `center` is the center of the Gaussian distribution, and `0.2` is the standard deviation.
-- The Gaussian value is then scaled and assigned to the red, green, and blue components of the pixel.
-- Finally, the image is saved to a PNG file using the `stbi_write_png` function.
+- Inside the loops, it calculates the **Gaussian value** at each pixel using the formula $\exp\left(-\frac{{(\mathbf{v} - \text{center}).\text{norm2}}}{{2 \times \text{sqr}(0.2)}}\right)$, where $\mathbf{v}$ is the vector representing the current pixel position, $\text{center}$ is the center of the Gaussian distribution, and $0.2$ is the standard deviation.
+- The Gaussian value is then scaled and assigned to the **red, green, and blue components** of the pixel.
+- The image is saved to a PNG file using the stbi_write_png function.
 
-This code generates an image with a Gaussian distribution centered at `(0.2, 0.1, 0)`, where the intensity of each pixel is determined by the Gaussian function. The resulting image will have a Gaussian-like pattern, with brighter regions near the center and fading towards the edges.
+This code generates an image with a Gaussian distribution, where the intensity of each pixel is determined by the Gaussian function. The resulting image will have a Gaussian-like pattern, with brighter regions near the center and fading towards the edges.
 
 This is the image produced:
+
 ![image_0](image_0.png)
 
 # BE-1 12/01/24
 
-## Section 1.0
-First of all, we will introduce some objects, such as the Classes Ray and Sphere.
-```cpp
-// Class Ray -> // Class representing a ray in 3D space
-class Ray {
-public:
-    Vector O; // Origin of the ray
-    Vector u; // Direction of the ray
+## 1.0 Intersection Ray-Sphere
 
-    // Constructor to initialize the ray with an origin and direction
-    Ray(const Vector& O, const Vector& u) : O(O), u(u) {}
-};
-```
-``` cpp
-// Class representing a sphere in 3D space
-class Sphere {
-public:
-    // Constructor to initialize the sphere with a center, radius, and surface color
-    Sphere(const Vector& c, double r) : C(c), R(r) {};
-    Vector C;       // Center of the sphere
-    double R;       // Radius of the sphere
-};
- ```
+First of all, we will introduce some objects, such as:
 
- After that, we have to create the image in the main and see if for every pixel of the image, the rayons from the camera will have intersections with the sphere.
+- the class **Ray**, which contains a Vector *O* for the origin of the ray and a Vector *u* to store the direction of the ray.
+- The class **Sphere**, which contains a Vector *C* to save the information related to the center of the sphere and a double *R* for the radius.
 
- ```cpp
- int main() {
-    int W = 512;
-    int H = 512;
-    double fov = 60 * M_PI / 180.0;
-    double d = W / (2.0 * tan(fov / 2));
-    Vector camera(0, 0 , 55);    // Set up the camera position
-    std::vector<unsigned char> image(W * H * 3, 0);  // Create an image buffer
+Now, it is important to insert the concept of **intersection between Ray and Sphere**.
 
-    Sphere s1(Vector(0, 0, -55), 20.);  // Define a sphere
-    
-#pragma omp parallel for
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);  // Calculate the ray direction based on the camera and image coordinates
-            u.normalize();
-            Ray r(Vector(0,0,0), u);
-            bool intersection = s1.intersect(r);
-            image[(i*W + j) * 3 + 0] = intersection? 255:0;   // RED
-            image[(i*W + j) * 3 + 1] = intersection? 255:0;  // GREEN
-            image[(i*W + j) * 3 + 2] = intersection? 255:0;  // BLUE
-        }
-    }
-    stbi_write_png("image_1_0.png", W, H, 3, &image[0], 0);  // Save the image to a file
+A ray, originating from point $O$ and directed along vector $\mathbf{u}$, is parametrized by $X(t) = O + t \mathbf{u}$, where $t > 0$.
+On the other hand, a sphere centered at $C$ with radius $R$ is defined implicitly by the equation $\|X - C\|^2 = R^2$.
 
-    return 0;
-}
- ```
-Now, we have to create the function 'intersect' for the Class Sphere. According to the result of delta, we can have or not have intersections.
- ```cpp
-// Function to check for intersection between the sphere and a ray
-bool intersect(const Ray& d) const{
-    // Define coefficients of the quadratic equation for intersection
-    double a = 1;
-    double b = 2 * dot(d.u, d.O - C);
-    double c = (d.O - C).norm2() - R * R;
+Any point of intersection $P$, if it exists, must satisfy both equations. Substituting the ray equation into the sphere equation yields $\|O + t \mathbf{u} - C\|^2 = R^2$.
+Expanding the squared norm and leveraging scalar product bilinearity, we arrive at the quadratic equation:
+\[t^2 + 2t\langle\mathbf{u}, O - C\rangle + \|O - C\|^2 - R^2 = 0\]
 
-    // Calculate the discriminant
-    double delta = b * b - 4 * a * c;
+This quadratic equation yields $0$, $1$, or $2$ real solutions, depending on the discriminant $\Delta = \langle\mathbf{u}, O - C\rangle^2 - (\|O - C\|^2 - R^2)$.
+Geometrically, if $\Delta < 0$, the line (not the ray) does not intersect the sphere. If $\Delta = 0$, there's a single (double) intersection, and if $\Delta > 0$, there are two intersections.
+However, we need to ensure that the solution parameter $t$ is non-negative to prevent intersections behind the ray origin.
 
-    // If the discriminant is negative, no intersection
-    if (delta < 0) 
-        return false;
+In the context of ray-tracing, only the first non-negative intersection is considered, i.e., the one closest to the ray origin.
+If $\Delta \geq 0$, the possible intersection parameters are $t_1 = \langle\mathbf{u}, C - O\rangle - \sqrt{\Delta}$ and $t_2 = \langle\mathbf{u}, C - O\rangle + \sqrt{\Delta}$.
+If $t_2 < 0$, the ray does not intersect the sphere. Otherwise, if $t_1 \geq 0$, $t = t_1$, otherwise $t = t_2$. The intersection point $P$ is given by $P = O + t \mathbf{u}$.
 
-    // Calculate the solutions for t
-    double t1 = (-b - sqrt(delta)) / (2 * a);
-    double t2 = (-b + sqrt(delta)) / (2 * a);
+Firstly, I define a function named '**intersect**' within the class 'Sphere'. As mentioned earlier, I compute the parameters of the quadratic equation, denoted as $a$, $b$, and $c$. Then, I calculate the discriminant ($\Delta$). If it is negative, the function returns false, indicating no intersection. Otherwise, I compute both solutions, but I consider only the one closest to the origin of the ray, namely $t_2$.
+By iterating over all pixels in the pixel grid, casting rays, and checking for intersections, we can determine if any intersections occur. If an intersection is found, setting the pixel to white will produce the desired image.
 
-    if (t2 > 0) 
-        return true;
-
-    return false;
-}
- ```
-
- At the end of this section, we will obtain a white sphere on a black background. The color white is given cause of the rayons from the camera that have intersection with the area defined by the sphere. 
+At the end of this section, we will obtain a white sphere on a black background. The color white is given cause of the rays from the camera that have intersections with the area defined by the sphere.
 
  ![image_1_0](image_1_0.png)
 
- ## Section 1.1
-In this part, we will add the enlightenment Lambertien model.  We have to:
-- add the source of light
-- in case of intersection, take just the point closer to the light
-- add the color (albedo) as feature of the Sphere.
-  
-This are the modification in the main.
-```cpp
-int main() {
-    int W = 512;
-    int H = 512;
-    double fov = 60 * M_PI / 180.0;
-    double d = W / (2.0 * tan(fov / 2));
-     Vector camera(0, 0 , 55);    // Set up the camera position
-    // Create an image buffer
-    std::vector<unsigned char> image(W * H * 3, 0);
-    Sphere s1(Vector(0, 0, -55), 20., Vector(0.,1.,0.));
 
-    Vector position_light = Vector(15, 70, -20);  // Set the position of the light source
-    int intensity_light = 2E6;  // Set the intensity of the light source
-#pragma omp parallel for
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            
-            // Calculate the ray direction based on the camera and image coordinates
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Vector P,N;
-            Ray r(Vector(0,0,0), u);
-            bool intersection =  s1.intersect(r,P,N);
-            Vector intensity_pixel = Vector(0,0,0);
-            if (intersection) {
-                // Calculate the intensity of the pixel based on the Phong reflection model
-                intensity_pixel = s1.albedo * intensity_light * std::max(0., dot(N, (position_light - P).getNormalized()))/(position_light - P).norm2();
-                
-            }
-                // Clamp the pixel intensity values between 0 and 255
-                image[(i*W + j) * 3 + 0] = std::min(255.,std::max(0., intensity_pixel[0]));   // RED
-                image[(i*W + j) * 3 + 1] = std::min(255.,std::max(0., intensity_pixel[1]));  // GREEN
-                image[(i*W + j) * 3 + 2] = std::min(255.,std::max(0., intensity_pixel[2]));  // BLUE
-        }
-    }
-    stbi_write_png("image_1_1.png", W, H, 3, &image[0], 0);  // Save the rendered image
+## 1.1 Enlightenment Lambertian model
 
-    return 0;
-}
+The Lambertian lighting model describes how surfaces reflect light uniformly in all directions, regardless of the observer's viewpoint. A Lambertian surface is one that exhibits diffuse reflection, scattering light equally in all directions.
 
-```
+To achieve this, it's crucial to compute the pixel intensity when an intersection occurs. This involves considering the albedo (representing the object's color) and the light intensity, initially set at $2 \times 10^6$. Additionally, we compute the diffuse reflection using the formula:
 
-In the function intersect of the class Sphere, we had to add two Vectors, N (Normal) and P (position) in order to get the closer point of intersection. 
-```cpp
-bool intersect(const Ray& d, Vector& P, Vector& N) const{
-        // resout a*t*2 + b*t +c =c0
-        double t;
-        double a = 1;
-        double b = 2 * dot(d.u, d.O - C);
-        double c = (d.O - C).norm2() - R * R;
+\[
+\text{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position\_light} - \mathbf{P}) \rangle}{\| \text{position\_light} - \mathbf{P} \| ^2}\right)
+\]
 
-        double delta = b * b - 4 * a * c;
-        if (delta < 0) return false;
-        double t1 = (-b - sqrt(delta)) / 2 * a;
-        double t2 = (-b + sqrt(delta)) / 2 * a;
+where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and $\text{position\_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
 
-        if (t2 < 0) return false;
-        if (t1 > 0)
-            t = t1;
-        else
-            t = t2;
+For further lighting computation, we also need to determine the unit normal $\mathbf{N}$ at $P$, which can be calculated as $\mathbf{N} = \dfrac{P - C}{\|P - C\|}$.
 
-        P = d.O + t * d.u;
-        N = (P - C).getNormalized();
-        return true;
-    }
+In the **intersect** function of the `Sphere` class, I have introduced two additional vectors, $\mathbf{N}$ and $\mathbf{P}$, passed by reference. This modification facilitates the computation of the normal vector $\mathbf{N}$, defined as the difference between the intersection point $\mathbf{P}$ and the center of the sphere $\mathbf{C}$.
 
-```
-This is the image created: 
+This is the image created:
+
 ![image_1_1](image_1_1.png)
 
-## Section 1.2
-In this section we'll deal with the intersection between the rayons and the Scene. The Scene is a class that contains a vector of Spheres. It contains also a function to see if there are intersection for each Sphere of the Scene with the rays of the camera. 
+## 1.2 Scene
 
-```cpp
-// Class representing a scene containing multiple spheres
-// Definition of the Scene class
-class Scene {
-public:
-    // Default constructor
-    Scene() {}; // Empty constructor, does nothing
+In this section, we'll focus on constructing the **Scene**. This class contains a vector of Spheres and includes functions to add a Sphere to the Scene and to determine if there are intersections between each Sphere and the camera rays.
 
-    // Function to add a sphere to the scene
-    void addSphere(const Sphere& sphere) {
-        objects.push_back(sphere); // Adds the sphere to the list of objects in the scene
-    }
+The function '**intersect**' of the class Scene iterates through each object in the scene using a for loop, checking for intersections with the camera rays. If an intersection is found, it stores the ID of the object if the intersection distance is less than previously found distances. This allows us to identify the object closest to the origin of the ray.
 
-    // Function to check for intersection between the scene and a ray
-    bool intersect(const Ray& d, Vector& P, Vector& N, int& sphere_id, double& min_t) const {
-        bool has_inter = false; // Flag to indicate if there has been an intersection
-        min_t = 1E99; // Initial maximum value for the minimum intersection distance
-        for (int i = 0; i < objects.size(); ++i) { // Iterates over all objects in the scene
-            Vector localP, localN; // Temporary variables to store local point and normal
-            double t; // Temporary variable to store the intersection distance
-            bool local_has_inter = objects[i].intersect(d, localP, localN); // Checks intersection between the current object and the ray
-            if (local_has_inter) { // If there is an intersection with the current object
-                has_inter = true; // Set the intersection flag to true
-                if (t < min_t) { // If the intersection distance is less than the minimum distance found so far
-                    min_t = t; // Update the minimum distance
-                    P = localP; // Store the intersection point
-                    N = localN; // Store the normal at the intersection point
-                    sphere_id = i; // Store the ID of the object
-                }
-            }
-        }
-        return has_inter; // Returns true if there has been an intersection, otherwise false
-    }
-
-    std::vector<Sphere> objects; // Vector containing the objects present in the scene
-};
-
-```
-We have to modify the main as well, adding a Scene and different spheres at it, to build the walls of our Scene.
-
-```cpp
-int main() {
-    int W = 512;
-    int H = 512;
-    double fov = 60 * M_PI / 180.0;
-    double d = W / (2.0 * tan(fov / 2));
-     Vector camera(0, 0 , 55);    // Set up the camera position
-    // Create an image buffer
-    std::vector<unsigned char> image(W * H * 3, 0);
-
-     Scene s;
-    
-    Sphere s1(Vector(0, 0, -55), 12., Vector(0, 0.8, 0)); // center
-    Sphere s2(Vector(0, -1000, 0), 985., Vector(1, 0.4, 0.14)); // down
-    Sphere s3(Vector(0, 1000, 0), 910., Vector(0, 0, 0.8)); // up
-    Sphere s4(Vector(-1000, 0, 0), 920., Vector(0.0, 0.5, 0.3)); // left
-    Sphere s5(Vector(1000 - 15, 0, 0), 920., Vector(1, 1.0, 0)); // right
-    Sphere s6(Vector(0, 0, -1000), 940., Vector(0.5, 0, 0)); // back
-
-    s.addSphere(s1);
-    s.addSphere(s2);
-    s.addSphere(s3);
-    s.addSphere(s4);
-    s.addSphere(s5);
-    s.addSphere(s6);
-    Vector position_light = Vector(10,60,-20);
-    int intensity_light = 4E6;
-#pragma omp parallel for
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            
-            // Calculate the ray direction based on the camera and image coordinates
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Vector P,N;
-            int sphere_id;
-            Ray r(Vector(0,0,0), u);
-            bool intersection =  s.intersect(r,P,N,sphere_id);
-            Vector intensity_pixel = Vector(0,0,0);
-            if (intersection) {
-                intensity_pixel = s.objects[sphere_id].albedo * intensity_light * std::max(0., dot(N, (position_light - P).getNormalized()))/(position_light - P).norm2();
-                
-            }
-                image[(i*W + j) * 3 + 0] = std::min(255.,std::max(0., intensity_pixel[0]));   // RED
-                image[(i*W + j) * 3 + 1] = std::min(255.,std::max(0., intensity_pixel[1]));  // GREEN
-                image[(i*W + j) * 3 + 2] = std::min(255.,std::max(0., intensity_pixel[2]));  // BLUE
-        }
-    }
-    stbi_write_png("image_1_2.png", W, H, 3, &image[0], 0);
-
-    return 0;
-}
-
-```
+We also need to modify the main function by adding a Scene and different spheres to construct the walls of our scene. To create the walls, we utilize large spheres to ensure intersections between them.
 
 This is the image obtained at the end of the section:
+
 ![image_1_2](image_1_2.png)
 # BE-2 19/01/24
-## Section2.1 
-In this part, we will introduce the shadowing. In particular, we will introduce, in case of intersection between the source of light and the Scene, another ray. In case this ray will have intersection with the Sphere and the distance between the sphere and the groundfloor is smaller than the distance between the the source of light and the groundfloor, we will put that pixel black.  
+## 2.1 Shadows
 
-More over, we can add the gamma correction in order to have a major precision about the intensity of the color. For that, we use the function std::pow(intensity_color[0],1/2.2);
-```cpp
-int main() {
-    int W = 512;
-    int H = 512;
+In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared* (calculated as $ (\text{light} - \mathbf{P}).\text{norm2()} $), the color will be set to black, resulting in a shadow effect.
 
-    double fov = 60 * M_PI / 180.0;
-    double d = W / (2.0 * tan(fov / 2));
-    Scene s;
-    s.addSphere(Sphere(Vector(0, 0, 0), 10., Vector(0, 0.971, 0)));         // ball in the center
-    s.addSphere(Sphere(Vector(-1000, 0, 0), 955., Vector(0.0, 0.2, 0.9)));   // from left
-    s.addSphere(Sphere(Vector(1000, 0, 0), 965., Vector(0.9, 0.5, 0.7)));    // from right
-    s.addSphere(Sphere(Vector(0, -1000, 0), 990., Vector(0.2, 0.4, 0.14)));   // from below
-    s.addSphere(Sphere(Vector(0, 1000, 0), 950., Vector(0.2, 0.2, 0.1)));    // from up
-    s.addSphere(Sphere(Vector(0, 0, -1000), 940., Vector(0.2, 0.1, 0.1)));   // background
-    s.addSphere(Sphere(Vector(0, 0, 1000), 940., Vector(0.3, 0.4, 0.1)));    // background
+Moreover, we can incorporate **gamma correction** to enhance the precision of color intensity. This involves raising the RGB values (within a normalized range [0, 1]) to the power of $1/\gamma$, typically where $\gamma = 2.2$. To achieve this, we utilize the function $\text{std::pow}(\text{intensity_color}[x], 1/2.2)$.
 
-    Vector camera(0, 0 , 55);    // Set up the camera position
-    Vector light(-15, 30, 40);   // Set up the light position
-    double intensity = 1E9;
+This is the result obtained: it is possible to notice the shadow beneath the central ball, extending onto the floor.
 
-    std::vector<unsigned char> image(W * H * 3, 0);
-
-    int objectId;
-    double best_t;
-
-#pragma omp parallel for private(objectId, best_t)
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Ray r(camera,u);
-            Vector P,N;
-            int sphere_id;
-            double t;
-            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
-            Vector color(0, 0, 0);
-
-            if (has_intersection) {
-                Ray ray_light(P + 0.01 * N, (light - P).getNormalized());
-                Vector P_light, N_light;
-                int sphere_id_light;
-                double t_light;
-                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-                double d_light_squared = (light - P).norm2();
-
-                if (has_intersection_light && t_light * t_light < d_light_squared) {
-                    color = Vector(0, 0, 0); // Shadow color -> 000 is black, indicating shadow
-                } else {
-                    color = s.objects[sphere_id].albedo * (intensity * std::max(0., dot((light - P).getNormalized(), N)) / d_light_squared);
-                }
-            }
-            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
-            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
-            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
-        }
-    }
-
-    stbi_write_png("image_2_1.png", W, H, 3, &image[0], 0);
-
-    return 0;
-}
-
-```
-This is the result obtained: it is possible to notice the shadow below the ball in the center, that goes onto the floor.qa
 ![image_2_1](image_2_1.png)
 
-## Section2.2 Surface mirror
+## 2.2 Mirror Surface
 
-In this section we aim to introduce the concept of mirror surface. What we have to do is:
-- create a function tha compute recursively the color to apply, called getColor();
-- the number of calls of the function is determined by a parameter called number_of_rebonds;
-- we called this function in the main; it is also a way to have a better style of coding; 
-- we add a parameter inside the Sphere Class to know if that sphere is mirror or not.
+Unlike Lambertian surfaces, which scatter light uniformly in all directions, purely reflective or specular surfaces reflect light in a single direction. The direction of **reflection**, denoted as $\omega_r$, is determined by subtracting twice the dot product between the incident direction $\omega_i$ and the surface normal $\mathbf{N}$ from the incident direction itself: $\omega_r = \omega_i - 2\langle\omega_i, \mathbf{N}\rangle\mathbf{N}$. Essentially, a perfect mirror only redirects light energy from the incident direction to the reflected direction.
 
+Implementing reflections becomes a crucial aspect of the path tracer. Reflective surfaces introduce recursive code: to compute the light reaching the camera sensor, we must determine the amount of light arriving at point $P$ from the reflected direction $\omega_r$. However, the light from this reflected direction may itself be the result of reflection from another mirror, and so on.
 
-```cpp
-Vector getColor(const Ray &r,const  Scene &s, int number_of_rebonds ) {
+In order to implement reflection, I've developed a function called **getColor**, which is recursively invoked in the main function. This function utilizes the parameter *number_of_rebonds* to determine the number of times the direction changes. Since it's impractical to compute this infinitely, we limit the number of rebonds.
 
-    if ( number_of_rebonds == 0 ) {
-        return Vector(0,0,0);
-    }
-     Vector P, N;
-            int sphere_id;
-            double t;
-            bool has_intersection = s.intersect(r, P, N, sphere_id, t);
-            Vector color(0, 0, 0);
+Here's how the *getColor* function operates:
 
+- At the beginning, there's an if statement to check if *number_of_rebonds* is equal to 0. In that case, the function returns the color black (0,0,0).
+- When an intersection occurs, there's another if statement to determine if the object is a mirror.
+- If the object is a mirror, the direction $\omega_i$ is computed using the formula $\omega_r - 2\cdot \text{dot}(N,\omega_r) \cdot N$. Then, a new ray, *ray_mirror*, is created with this direction, and the *getColor* function is recursively called with the updated value of *number_of_rebonds* (decremented by 1).
+- If the object is not a mirror, it falls under the case of diffuse surfaces (similar to the previous code).
 
-            if (has_intersection) {
+The main function will be simplified: within the nested loop, the *getColor* function will be called only once with the chosen *number_of_rebonds*.
 
+This is the result:
 
-                if(s.objects[sphere_id].is_mirror) {
-                    Vector direction_mirror= r.u - 2*dot(N,r.u)*N;
-                    Ray ray_mirror(P+0.001*N,direction_mirror);
-                    color = getColor(ray_mirror, s, number_of_rebonds -1);
-                } else {
-
-                Ray ray_light(P + 0.01 * N, (s.position_light- P).getNormalized());
-                Vector P_light, N_light;
-                int sphere_id_light;
-                double t_light;
-                bool has_intersection_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-                double d_light_squared = (s.position_light - P).norm2();
-
-                if (has_intersection_light && t_light * t_light < d_light_squared) {
-                    color = Vector(0, 0, 0); // Shadow color -> 000 è nero, fa 'ombra'
-                } else {
-                    color = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / d_light_squared);
-                }
-            }
-            }
-            return color;
-
-}
-
-
-```
-
-In the main:
-```cpp
- for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Ray r(camera,u);
-            Vector color = getColor(r,s,5);
-            // Apply gamma correction and store the color values in the image buffer
-            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(color[0], 0.45));   // RED
-            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(color[1], 0.45));   // GREEN
-            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(color[2], 0.45));   // BLUE
-        }
-    }
-
-```
 ![image_2_2](image_2_2.png)
 
 
-## Section2.2 Surface transparent
-In this section we'll see hot to implement a trasnparent surface. The modifications that we have to do are the following:
-- add a boolean as parameter of the Sphere to know if it is transparent or not;
-- modify the function getColor, in case we have the boolean set to 1, we add to compute the rifraction of the ray and compute the tangent and the normal component
-- add another sphere at the center of the image in order to see the difference between trasnaprency and mirroring.
+## 2.2 Transparent Surface
 
-```cpp
-Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
+The behavior of **transparent surfaces** is analogous to that of mirrors, with rays continuing their trajectory after bouncing off the surface, but this time, passing through it. However, computing the direction of reflection is slightly more complex. We employ Snell's law, expressed as $n_1 \sin \theta_i = n_2 \sin \theta_t$. This law states that the tangential component of the transmitted ray ($\sin \theta_t$) is stretched relative to that of the incident ray ($\sin \theta_i$) by a factor of $n_1/n_2$.
 
-    if (nbrebonds == 0) return Vector(0, 0, 0);
+Decomposing the transmitted direction $\omega_t$ into tangential and normal components ($\omega_{T}^{t}$ and $\omega_{N}^{t}$, respectively), we can derive that:
 
-    Vector P, N;
-    int sphere_id;
-    double t;
-    bool has_inter = s.intersect(r, P, N, sphere_id, t);
+\[ \omega_{T}^{t} = \frac{n_1}{n_2} (\omega_i - \langle \omega_i, \mathbf{N} \rangle \mathbf{N}) \]
 
-    Vector intensite_pix(0, 0, 0);
-    if (has_inter) {
+Where we utilize the fact that the tangential component of $\omega_i$ is obtained by subtracting its normal component (its projection onto $\mathbf{N}$).
 
-        if (s.objects[sphere_id].is_transparent) {
-            double n1 = 1;
-            double n2 = 1.3;
-            Vector normale_pour_transparence(N);
-            if (dot(r.u, N) > 0) { // on sort de la sphere
-                n1 = 1.3;
-                n2 = 1;
-                normale_pour_transparence = - N;
-            }
+Regarding the normal component, we have:
 
-            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
-            if (radical > 0) {
-                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
-                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
-                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
-            }
-        }
-        else if (s.objects[sphere_id].is_mirror) {
-            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
-            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
-            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
+\[ \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \sin^2 \theta_t} \]
 
-        }
-        else {
+Considering the normal $\mathbf{N}$ points towards the incoming ray. This simplifies to:
 
-            Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
-            Vector P_light, N_light;
-            int sphere_id_light;
-            double t_light;
-            bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-            double d_light2 = (s.position_light - P).norm2();
-            if (has_inter_light && t_light * t_light < d_light2) {
-                intensite_pix = Vector(0, 0, 0);
-            }
-            else {
-                intensite_pix = s.objects[sphere_id].albedo * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
-            }
-        }
-    }
-    return intensite_pix;
-}
+\[ \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2} \sin \theta_i\right)^2} \]
 
-```
+The cosine term can be computed by projecting onto the normal $\mathbf{N}$, resulting in:
+
+\[ \omega_{N}^{t} = -\mathbf{N} \sqrt{1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)} \]
+
+From this equation, one can observe that if $1 - \left(\frac{n_1}{n_2}\right)^2 (1 - \langle \omega_i, \mathbf{N} \rangle^2)$ becomes negative, the square root would yield imaginary results. This can only occur if $n_1 > n_2$. This corresponds to total internal reflection, and occurs if $\sin \theta_i > \frac{n_2}{n_1}$.
+
+The modification to the code involves adding an if statement to handle the transparency effect inside the *getColor* function. If the object is transparent and has refractive indices $n_1$ and $n_2$, we compute the normal direction. It's important to note that if $n_1 > n_2$, the normal direction should be negated, so we take its absolute value. We then determine the tangential direction of refraction using the formula seen above. Subsequently, we create the refracted ray and call the *getColor* function again, reducing the *number_of_rebonds* parameter by 1.
+
+In this image, you can observe both the transparency and mirror effects.
+
 
 ![image_2_3](image_2_3.png)
 
 # BE-3 02/02/24
-In this section we will implement the indirect enlightement, using the rendering equation and the Montecarlo integration.
+## 3.1 Indirect Illumination and Monte Carlo Integration
+
+### The Rendering Equation
+
+The rendering equation, governing the outgoing spectral radiance (i.e., the output of `Scene::getColor`), is expressed as follows:
+
+\[ L_o(x, \omega_o, \lambda, t) = L_e(x, \omega_o, \lambda, t) + \int_{\Omega} f(x, \omega_i, \omega_o, \lambda, t)L_i(x, \omega_i, \lambda, t)\langle \omega_i, \mathbf{N} \rangle d\omega_i \]
+
+This equation specifies that the color at a point `x` in the scene, evaluated at intersection points `P`, is contingent upon various factors. These include the direction of the ray `-ω_o`, the light wavelength `λ`, and a time parameter `t`. It yields the combined effect of emitted light `L_e` at `x` in the direction `ω_o`, along with the contribution of reflected light at the same point. The reflected light at `x` comprises the sum of all incoming light contributions `L_i` from the hemisphere `Ω` incident on `x`. This summation is modulated by the Bidirectional Reflectance Distribution Function (BRDF) `f`, which characterizes the appearance or shininess of materials, and a dot product/cosine function accounting for the projected area of light sources.
+
+A remarkable observation is that the incoming light at point `x` from direction `ω_i` equals the outgoing light at a point `x'` from direction `-ω_i`, assuming a vacuum medium. By utilizing the rendering equation at point `x'`, we can reformulate the equation previously mentioned at point `x`:
+
+\[ L_o(x, \omega_o) = L_e(x, \omega_o) + \int_{\Omega} f(x, \omega_i, \omega_o) \left( L_e(x, \omega_o) + \int_{\Omega'} f(x', \omega_i', -\omega_i)L_i(x', \omega_i')\langle \omega_i', \mathbf{N}' \rangle d\omega_i' \right) \langle \omega_i, \mathbf{N} \rangle d\omega_i \]
+
+Consequently, the illumination reaching point `x'` originates from other locations in the scene, leading to a recursive process. This necessitates integration over an infinite-dimensional domain known as Path Space, representing a sum of light paths with 0, 1, 2,... ∞ bounces, which must be computed numerically.
+
+## Bidirectional Reflectance Distribution Functions (BRDFs)
+
+An essential component in the rendering equation is the BRDF term `f`. It quantifies the extent of light reflection from a surface toward a direction `ω_o` when it arrives from a direction `ω_i`. Conditions for their physical meaningfulness are that:
+
+- they are positive (`f ≥ 0`);
+- they respect the Helmholtz reciprocity principle, meaning they are symmetric (`f(ω_i, ω_o) = f(ω_o, ω_i)`);
+- they preserve energy, meaning ∫Ω f(ω_i, ω_o)⟨ω_i, 𝐍⟩ dω_i ≤ 1, ∀ω_o.
+
+## Monte Carlo Integration
+
+Monte Carlo integration has emerged as a method for stochastically evaluating integrals. It is generally expressed as:
+
+$$
+\int_{\Omega} f(x) \, dx \approx \frac{1}{n} \sum_{i=1}^{n} \frac{f(x_i)}{p(x_i)}
+$$
+
+
+where `x_i` are random samples drawn from the probability density function `p`. This approximation converges to the true integral as the number of samples `n` tends to infinity, assuming `p > 0` wherever `f ≠ 0`. The convergence rate of this process is slow, decreasing in \( O(1/\sqrt{n}) \).
+
+An important technique for reducing integration error is **importance sampling**. It aims to identify a probability density function `p` that closely resembles `f`. If `p` is exactly proportional to `f`, i.e., `p = αf`, then
+
+$$
+\int_{\Omega} f(x) \, dx \approx \frac{1}{n} \sum_{i=1}^{n} \frac{f(x_i)}{\alpha p(x_i)}
+$$
+
+
+This results in convergence without requiring any samples, achieving a \( O(1) \) convergence rate. This is because probability distributions should integrate to 1, so if they integrate to 1 and are proportional to `f`, then the constant of proportionality is the (inverse of the) integral. In essence, if an exactly proportional probability density function (pdf) can be constructed, numerical integration is unnecessary because the integral value is already known.
+
+For now, we will assume that our surfaces are either purely diffuse with albedo `ρ` (and `L_e = 0`), or purely emissive (with `f = 0` and `L_e ≠ 0`). Our objective is to randomly sample the space of light paths, with a higher frequency in regions where the light contribution is high. This allows us to perform Monte Carlo estimation of the integral with importance sampling.
+
+At each bounce of light over a diffuse surface at point `x`, we locally evaluate the integrand, which requires recursively tracing another ray of light that needs to be importance sampled. For the diffuse case, the rendering equation simplifies to:
+
+
+$$
+L_o(x, \omega_o) = \frac{\rho}{\pi} \int_{\Omega} L_i(x, \omega_i) \langle \omega_i, \mathbf{N} \rangle \, d\omega_i
+$$
+
+To perform importance sampling in this scenario, we ideally want to sample the integrand 
+
+$$
+L_i(x, \omega_i) \langle \omega_i, \mathbf{N} \rangle
+$$
+
+However, as mentioned earlier, this is not straightforward (otherwise, the problem would be already solved). A simple approach is to sample only according to the second term 
+
+$$
+\langle \omega_i, \mathbf{N} \rangle
+$$
+
+Assuming 
+
+$$
+\mathbf{N} = (0, 0, 1)
+$$
+
+this can be achieved using a formula similar to the Box-Muller formula:
+
+$$
+
+\begin{aligned}
+    r_1, r_2 &\sim U(0, 1) \\
+    x &= \cos(2\pi r_1) \sqrt{1 - r_2} \\
+    y &= \sin(2\pi r_1) \sqrt{1 - r_2} \\
+    z &= \sqrt{r_2}
+\end{aligned}
+
+$$
+
+
+
 Important modifications in the code:
-- function getColor():
- ```cpp
 
-// Function to calculate color for a pixel using ray tracing
-Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
-    if (nbrebonds == 0) return Vector(0, 0, 0);
+In the function `getColor()`, I've added how to handle indirect illumination in this way:
 
-    Vector P, N;
-    int sphere_id;
-    double t;
-    bool has_inter = s.intersect(r, P, N, sphere_id, t);
+- created two random numbers `r1` and `r2`;
+- generated a random direction in local coordinates and a random vector in space;
+- calculated two tangent vectors based on the normal and the random vector;
+- combined the random local direction with the tangent vectors to obtain a random direction;
+- created a ray with a slight offset from the intersection point along the normal direction;
+- accumulated the color contribution from the random ray by recursively calling `getColor` function.
 
-    Vector intensite_pix(0, 0, 0);
-    if (has_inter) {
-        // Handling transparency
-        if (s.objects[sphere_id].is_transparent) {
-            // Refraction
-            double n1 = 1;
-            double n2 = 1.3;
-            Vector normale_pour_transparence(N);
-            if (dot(r.u, N) > 0) {
-                n1 = 1.3;
-                n2 = 1;
-                normale_pour_transparence = -N;
-            }
+In the main, I've specified the `number_of_rays`. Inside the loop over `number_of_rays`, multiple rays are cast from the same pixel position \( r \), each with a slightly different direction. This introduces randomness in the sampling process, which is beneficial for reducing aliasing and noise in the final rendered image.
 
-            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
-            if (radical > 0) {
-                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
-                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
-                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
-            }
-        }
-        // Handling mirrors
-        else if (s.objects[sphere_id].is_mirror) {
-            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
-            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
-            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
-        }
-        // Handling direct illumination
-        else {
-            Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
-            Vector P_light, N_light;
-            int sphere_id_light;
-            double t_light;
-            bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-            double d_light2 = (s.position_light - P).norm2();
-            if (has_inter_light && t_light * t_light < d_light2) {
-                intensite_pix = Vector(0, 0, 0);
-            }
-            else {
-                intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
-            }
-        }
-        // Handling indirect illumination
-        double r1 = uniform(engine);
-        double r2 = uniform(engine);
-        Vector random_direction_local(cos(2 * M_PI * r1) * sqrt(1 - r2), sin(2 * M_PI * r1) * sqrt(1 - r2), sqrt(r2));
-        Vector random(uniform(engine) - 0.5, uniform(engine) - 0.5, uniform(engine) - 0.5);
-        Vector tangent_1 = cross(N, random);
-        tangent_1.normalize();
-        Vector tangent_2 = cross(tangent_1, N);
-        Vector random_direction = random_direction_local[2] * N + random_direction_local[0] * tangent_1 + random_direction_local[1] * tangent_2;
-        Ray random_rayon(P + 0.001 * N, random_direction_local);
-        intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
-    }
-    return intensite_pix;
-}
+The color contribution from each of these rays is accumulated in the `color` variable. After casting all `number_of_rays` rays, the accumulated color is averaged by dividing by `number_of_rays`, effectively computing the average color value for that pixel.
 
-``` 
--added rays in the main: 
-```cpp
+By increasing the value of `number_of_rays`, you increase the number of samples taken per pixel, which generally leads to smoother and higher-quality rendered images. However, it also increases computational overhead, so there's often a trade-off between rendering speed and image quality.
 
- const int number_of_rays = 8;
-
-#pragma omp parallel for private(objectId, best_t)
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            Vector u(j - W / 2. + 0.5, -i + H / 2. - 0.5, -d);
-            u.normalize();
-            Ray r(camera, u);
-            Vector color(0., 0., 0.);
-            for (int k = 0; k < number_of_rays; k++) {
-                color += getColor(r, s, 5) / number_of_rays;
-            } 
-        }
-    }
-```
 At the end, we should see a more diffuse and less sharp image.
+
 ![image_3_1](image_3_1.png)
 
 # BE-4 09/02/24
-In this section we'll see how to add the antialiasing filter, soft shadows and depth-of-field.
-## Section4.1 Antialising filter
-In order to solve the aliasing problem and to have more precision in the printed image, we apply the antialising filter. It consists of a function used for assigning the weights at the closer pixels in order to do the sampling for every pixel. The modifications are the followings:
-```cpp
+In this section, we'll see how to add the antialiasing filter, soft shadows, and depth-of-field.
 
-#pragma omp parallel for private(objectId, best_t)
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
-            
-            Vector color(0., 0., 0.);
-            for (int k = 0; k < number_of_rays; k++) {
-               //methode Box Muller 
-                double r1 = uniform(engine);
-                double r2 = uniform(engine);
-                double R = sqrt(-2*log(r1));
-                double dx = R*cos(2*M_PI*r2);
-                double dy = R*sin(2*M_PI*r2);
+### 4.1 Antialiasing Filter
 
+In order to address the aliasing issue and enhance the precision of the rendered images, an anti-aliasing filter has been implemented. This method involves adjusting the sampling process for each pixel by assigning weights to neighboring pixels.
 
-                Vector u(j - W / 2. + 0.5 + dx, -i + H / 2. - 0.5 + dy, -d);
-                u.normalize();
-                Ray r(camera, u);
-                color += getColor(r, s, 5) / number_of_rays;
-            } 
-            // Apply gamma correction and store the color values in the image buffer
-            image[(i * W + j) * 3 + 0] = std::min(255., std::max(0., std::pow(color[0], 1 / 2.2))); // RED
-            image[(i * W + j) * 3 + 1] = std::min(255., std::max(0., std::pow(color[1], 1 / 2.2))); // GREEN
-            image[(i * W + j) * 3 + 2] = std::min(255., std::max(0., std::pow(color[2], 1 / 2.2))); // BLUE
-        }
-    }
+The Box-Muller method is employed to generate random deviations (dx and dy) for each pixel. This method utilizes uniformly distributed random numbers to generate pairs of normally distributed random numbers, which are then used to displace the pixel position.
 
-```
+The generated deviations (dx and dy) are applied to adjust the pixel position (u) before casting the ray. This adjustment introduces random variations in the direction of the ray, effectively mitigating aliasing effects.
+
 ![image_4_1](image_4_1.png)
 
 ## Section4.2 Sweet Shadows
@@ -704,99 +280,14 @@ First of all, we consider the light as a sphere that is part of the Scene. Insid
 Using a bigger sphere for the light, it is possible to notice less noise in the image.
 ![image_4_2b](image_4_2b.png)
 
-After that, we introduce the concept of soft shadows. We separate the emisphere of integration in two parts: the direct contribution is the one of the light sourcer project, the rest of the hemisphere is for indirect. We re-parametrize the rendering equation via a change of variable. Thus, we have to compute the determinant and the normal of the area patch. We create a new function called random_cos, that returns a random Vector that has more chances of being sampled around N than orthogonally to it. Inside the function getColor, we do other changes, mostly for the direct enlightement.
-```cpp
-// Function to calculate color for a pixel using ray tracing
-Vector getColor(Ray &r, const Scene &s, int nbrebonds) {
-    if (nbrebonds == 0) return Vector(0, 0, 0);
+After that, we introduce the concept of soft shadows. We separate the hemisphere of integration into two parts: the direct contribution is the one of the light source projection, the rest of the hemisphere is for indirect. We re-parametrize the rendering equation via a change of variable. Thus, we have to compute the determinant and the normal of the area patch. We create a new function called `random_cos`, that returns a random Vector that has more chances of being sampled around `N` than orthogonally to it. Inside the function `getColor`, we do other changes, mostly for the direct enlightenment.
 
-    Vector P, N;
-    int sphere_id;
-    double t;
-    bool has_inter = s.intersect(r, P, N, sphere_id, t);
-
-    Vector intensite_pix(0, 0, 0);
-    if (has_inter) {
-
-        // Handling transparency
-        if (s.objects[sphere_id].is_transparent) {
-            // Refraction
-            double n1 = 1;
-            double n2 = 1.3;
-            Vector normale_pour_transparence(N);
-            if (dot(r.u, N) > 0) {
-                n1 = 1.3;
-                n2 = 1;
-                normale_pour_transparence = -N;
-            }
-
-            double radical = 1 - sqr(n1 / n2) * (1 - sqr(dot(normale_pour_transparence, r.u)));
-            if (radical > 0) {
-                Vector direction_refraction = (n1 / n2) * (r.u - dot(r.u, normale_pour_transparence) * normale_pour_transparence) - normale_pour_transparence * sqrt(radical);
-                Ray rayon_refracte(P - 0.01 * normale_pour_transparence, direction_refraction);
-                intensite_pix = getColor(rayon_refracte, s, nbrebonds - 1);
-            }
-        }
-        // Handling mirrors
-        else if (s.objects[sphere_id].is_mirror) {
-            Vector direction_mirroir = r.u - 2 * dot(N, r.u) * N;
-            Ray rayon_mirroir(P + 0.01 * N, direction_mirroir);
-            intensite_pix = getColor(rayon_mirroir, s, nbrebonds - 1);
-        }
-        // Handling direct illumination
-        else {
-            // Ray ray_light(P + 0.01 * N, (s.position_light - P).getNormalized());
-            // Vector P_light, N_light;
-            // int sphere_id_light;
-            // double t_light;
-            // bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-            // double d_light2 = (s.position_light - P).norm2();
-            // if (has_inter_light && t_light * t_light < d_light2) {
-            //     intensite_pix = Vector(0, 0, 0);
-            // }
-            // else {
-            //     intensite_pix = s.objects[sphere_id].albedo / M_PI * (s.intensity_light * std::max(0., dot((s.position_light - P).getNormalized(), N)) / (s.position_light - P).norm2());
-            // }
-        }
-
-        Vector axe_OP = (P-s.light->C).getNormalized();
-        Vector random_direction = random_cos((P-s.light->C).getNormalized());
-        Vector random_point = random_direction* s.light->R + s.light->C;
-        Vector wi = (random_point - P).getNormalized();
-        double d_light_squared = (random_point - P).norm2();
-        Vector Np = random_direction;
-
-        Ray ray_light(P + 0.01 * N, wi);
-        Vector P_light, N_light;
-        int sphere_id_light;
-        double t_light;
-        bool has_inter_light = s.intersect(ray_light, P_light, N_light, sphere_id_light, t_light);
-
-        if (has_inter_light && t_light * t_light < 0.99 * d_light_squared) {
-            intensite_pix = Vector(0, 0, 0);
-        }
-        else {
-        
-        intensite_pix = (s.intensity_light / (4*M_PI*d_light_squared) * std::max(0., dot(N, wi)) /dot(axe_OP,random_direction)) *s.objects[sphere_id].albedo;
-        }
-        // Handling indirect illumination
-     
-        Vector random_dir = random_cos(N);
-        Ray random_rayon(P + 0.001 * N, random_dir);
-        intensite_pix += getColor(random_rayon, s, nbrebonds - 1) * s.objects[sphere_id].albedo;
-    }
-    return intensite_pix;
-}
-
-
-```
-Result: With respect to the previous one, it is possible to see less noise.
+**Result:** With respect to the previous one, it is possible to see less noise.
 
 ![image_4_2c](image_4_2c.png)
 
 ## Section 4.3 Depth of field
 Due to the fact that the generated images are sharp at all distances, we will implement the depth of field: in this way all the points at the focus distance should describe a plane where points project to points on the sensor and remain sharp, and light passes through the aperture before reaching the lens.
-The modifications are all in the main part, regarding the camera.
 It is possible to notice that there is more deep in the image, that gives a certain sense of perspective. 
 
 ![image_4_3](image_4_3.png)
