@@ -60,12 +60,10 @@ At the end of this section, we will obtain a white sphere on a black background.
 The Lambertian lighting model describes how surfaces reflect light uniformly in all directions, regardless of the observer's viewpoint. A Lambertian surface is one that exhibits diffuse reflection, scattering light equally in all directions.
 
 To achieve this, it's crucial to compute the pixel intensity when an intersection occurs. This involves considering the albedo (representing the object's color) and the light intensity, initially set at $2 \times 10^6$. Additionally, we compute the diffuse reflection using the formula:
-
 $$
 \text{std::max}\left(0, \frac{\langle \mathbf{N}, (\text{position\_light} - \mathbf{P}) \rangle}{\| \text{position\_light} - \mathbf{P} \| ^2}\right)
 $$
-
-where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and $\text{position_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
+where $\mathbf{N}$ is the surface normal, $\mathbf{P}$ is the intersection point, and ${position\_light}$ is the position of the light source. This formula ensures that negative values are clamped to zero, and it accounts for the angle between the surface normal and the vector from the intersection point to the light source position.
 
 For further lighting computation, we also need to determine the unit normal $\mathbf{N}$ at $P$, which can be calculated as $\mathbf{N} = \dfrac{P - C}{\|P - C\|}$.
 
@@ -89,11 +87,7 @@ This is the image obtained at the end of the section:
 # BE-2 19/01/24
 ## 2.1 Shadows
 
-In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared*, calculated as
-$$
-({light} - \mathbf{P}).\text{norm2()}
-$$
- the color will be set to black, resulting in a shadow effect.
+In this section, we will introduce **shadowing effects**. Specifically, when an intersection occurs between the light source and the Scene, we will cast another ray. If this ray intersects with a Sphere and the distance between the sphere and the ground floor is smaller than the distance between the light source and the ground floor, we will color that pixel black. These modifications can be observed in the main function, where I added the ray *ray_light*. If an intersection occurs and the distance *t_light* (from the ray to the light) is less than *d_light_squared*, the color will be set to black, resulting in a shadow effect.
 
 Moreover, we can incorporate **gamma correction** to enhance the precision of color intensity. This involves raising the RGB values (within a normalized range [0, 1]) to the power of $1/\gamma$, typically where $\gamma = 2.2$.
 
