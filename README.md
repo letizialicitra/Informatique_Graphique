@@ -308,22 +308,12 @@ It is possible to notice that there is more deep in the image, that gives a cert
 
 # BE-5 16/02/24
 
-In this section we will se the following steps:
-- intersection ray-plan, ray triangle
-- ray bounding box
-- bounding volume hierarchies
-- Phong smoothing
-
-## Section 5.1
+## Section 5.1 Intersection ray-plan, ray triangle
 In this first section our aim is to introduce the class 'Triangle' and perform the intersection ray-triangle. In order to make our objects as general as possible, we create also another Class, called 'Object', that contains the parameters that Triangle and Sphere have in common, in other words the parameter is_transparent, is_mirror, albedo. In order to compute the intersection between the traingle and the ray, due to the fact that the traingle is made of 3 points, it is necessary to compute the parameters of the matrices that represents the different distances between the points of the triangle and the intersection point. For this reason, we use Cramer methode, so we compute the determinant of the matrices to solve the system equations. At the end, in the main part, we also create and add the object t1 that represent our first Triangle. This is the result:
 
 ![image_5_1](image_5_1.png)
-## Section 5.2
-## Section 5.3
-## Section 5.4
-
-# BE-6 23/02/24
-```cpp
 
 
-```
+## References
+
+This document was created using explanations and information found in the following [page](https://perso.liris.cnrs.fr/nicolas.bonneel/teaching.html) redacted by Nicolas Bonneel, in the section 'École Centrale Lyon -- Cours de Rendu Réaliste'.
